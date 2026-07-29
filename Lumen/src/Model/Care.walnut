@@ -1,0 +1,427 @@
+module Model.Care exposing (..)
+
+import Model.Types exposing (..)
+
+
+{-| Glucose UI only when a glucose-related condition is on — not GLP-1 alone.
+-}
+tracksGlucose : Profile -> Bool
+tracksGlucose p =
+    p.type2 || p.prediabetes
+
+
+tracksBP : Profile -> Bool
+tracksBP p =
+    p.hypertension
+
+
+tracksLipids : Profile -> Bool
+tracksLipids p =
+    p.lipids
+
+
+tracksGlp1 : Profile -> Bool
+tracksGlp1 p =
+    p.glp1
+
+
+hasAnyCondition : Profile -> Bool
+hasAnyCondition p =
+    tracksGlucose p || tracksBP p || tracksLipids p || tracksGlp1 p
+
+
+{-| Short labels for the active care plan (Feedback eyebrow / Agency echo).
+-}
+planLabels : Profile -> List String
+planLabels p =
+    List.append
+        (if p.type2 then
+            [ "Type 2" ]
+
+         else
+            []
+        )
+        (List.append
+            (if p.prediabetes then
+                [ "Prediabetes" ]
+
+             else
+                []
+            )
+            (List.append
+                (if p.hypertension then
+                    [ "BP" ]
+
+                 else
+                    []
+                )
+                (List.append
+                    (if p.lipids then
+                        [ "Lipids" ]
+
+                     else
+                        []
+                    )
+                    (if p.glp1 then
+                        [ "GLP-1" ]
+
+                     else
+                        []
+                    )
+                )
+            )
+        )
+
+
+planSummary : Profile -> String
+planSummary p =
+    let
+        labels =
+            planLabels p
+    in
+    if List.length labels == 0 then
+        "No conditions selected"
+
+    else
+        "Plan · " ++ String.join " · " labels
+
+
+{-| HealthKit read types for the active plan (always include steps + HR).
+-}
+healthKitTypes : Profile -> String
+healthKitTypes p =
+    String.join ","
+        (List.append
+            [ "steps", "heartRate" ]
+            (List.append
+                (if tracksBP p then
+                    [ "bloodPressure" ]
+
+                 else
+                    []
+                )
+                (List.append
+                    (if tracksGlucose p then
+                        [ "bloodGlucose" ]
+
+                     else
+                        []
+                    )
+                    (if tracksLipids p || tracksGlp1 p then
+                        [ "bodyMass" ]
+
+                     else
+                        []
+                    )
+                )
+            )
+        )
+
+
+{-| Clinical priority for the single next action — not “first toggle wins.”
+-}
+focus : Profile -> String
+focus p =
+    if not (hasAnyCondition p) then
+        "none"
+
+    else if tracksBP p then
+        "bp"
+
+    else if tracksGlucose p then
+        "glucose"
+
+    else if tracksGlp1 p then
+        "glp1"
+
+    else if tracksLipids p then
+        "lipids"
+
+    else
+        "none"
+
+
+primaryCoachId : Profile -> String
+primaryCoachId p =
+    let
+        f =
+            focus p
+    in
+    if f == "bp" then
+        "coach-priya"
+
+    else if f == "glucose" then
+        "coach-marcus"
+
+    else if f == "glp1" then
+        "coach-ava"
+
+    else if f == "lipids" then
+        "coach-jordan"
+
+    else
+        "coach-ava"
+
+
+insightTitle : Profile -> String
+insightTitle p =
+    let
+        f =
+            focus p
+    in
+    if f == "none" then
+        "Choose what to watch"
+
+    else if f == "bp" then
+        "Two calm BP readings"
+
+    else if f == "glucose" then
+        "Walk after a meal"
+
+    else if f == "glp1" then
+        "Protect protein today"
+
+    else if f == "lipids" then
+        "One lipid question ready"
+
+    else
+        "Open a short lesson"
+
+
+insightBody : Profile -> String
+insightBody p =
+    let
+        f =
+            focus p
+    in
+    if f == "none" then
+        "Open Plan → Conditions. Today only shows actions for what you turn on."
+
+    else if f == "bp" then
+        "Measure seated, twice, before caffeine. Check it off under Today’s focus when done."
+
+    else if f == "glucose" then
+        "Ten minutes after eating often steadies the curve more than another rule. Marcus can help you read one number calmly."
+
+    else if f == "glp1" then
+        "Appetite may be quiet. Still anchor a protein-forward meal—message Ava for a 3-option menu."
+
+    else if f == "lipids" then
+        "Bring one timing or side-effect question to Jordan—or your clinician. Not a lipid panel substitute."
+
+    else
+        "Pick a track in Learn that matches your plan."
+
+
+{-| Series visible for the active plan (steps always; others gated).
+-}
+visibleTrends : Model -> List TrendSeries
+visibleTrends model =
+    List.filter (\s -> trendVisible model.profile s) model.trends
+
+
+trendVisible : Profile -> TrendSeries -> Bool
+trendVisible p series =
+    if series.id == "steps" then
+        True
+
+    else if series.id == "glucose" then
+        tracksGlucose p
+
+    else if series.id == "bp" then
+        tracksBP p
+
+    else if series.id == "weight" then
+        tracksLipids p || tracksGlp1 p
+
+    else
+        False
+
+
+trendMax : TrendSeries -> Int
+trendMax series =
+    List.foldl
+        (\p acc ->
+            if p.value > acc then
+                -- Owned copy: record fields are borrowed; foldl may release the acc.
+                p.value + 0
+
+            else
+                acc
+        )
+        1
+        series.points
+
+
+barHeight : Int -> Int -> Int
+barHeight value maxV =
+    let
+        h =
+            if maxV <= 0 then
+                4
+
+            else
+                (value * 48) // maxV
+    in
+    if h < 4 then
+        4
+
+    else
+        h
+
+
+greeting : Model -> String
+greeting model =
+    let
+        f =
+            focus model.profile
+    in
+    if f == "none" then
+        "Set your plan"
+
+    else if f == "bp" then
+        if model.vitals.bpSys > 0 && model.vitals.bpSys < 130 then
+            "BP looks calm"
+
+        else
+            "Check in on BP"
+
+    else if f == "glucose" then
+        if model.vitals.steps > 5000 then
+            "You are moving"
+
+        else
+            "Steady the curve"
+
+    else if f == "glp1" then
+        "Steady day"
+
+    else if f == "lipids" then
+        "One clear question"
+
+    else if model.vitals.steps > 5000 then
+        "You are moving"
+
+    else
+        "Good morning"
+
+
+commitmentVisible : Profile -> Commitment -> Bool
+commitmentVisible p c =
+    if c.id == "c1" then
+        tracksGlucose p || tracksBP p
+
+    else if c.id == "c2" then
+        tracksBP p
+
+    else if c.id == "c3" then
+        tracksGlp1 p || tracksGlucose p
+
+    else
+        True
+
+
+visibleCommitments : Model -> List Commitment
+visibleCommitments model =
+    List.filter (\c -> commitmentVisible model.profile c) model.commitments
+
+
+visibleDailyGoals : Model -> List Commitment
+visibleDailyGoals model =
+    List.filter (\c -> c.daily) (visibleCommitments model)
+
+
+keptDayCount : Model -> Int
+keptDayCount model =
+    List.length (List.filter (\d -> d.mark == "kept") model.weekDays)
+
+
+weekCaption : Model -> String
+weekCaption model =
+    let
+        kept =
+            keptDayCount model
+
+        streak =
+            model.streakDays
+    in
+    if streak <= 0 then
+        String.fromInt kept ++ " kept this week · start a gentle run anytime"
+
+    else if streak == 1 then
+        String.fromInt kept ++ " kept this week · on a 1-day run"
+
+    else
+        String.fromInt kept ++ " kept this week · on a " ++ String.fromInt streak ++ "-day run"
+
+
+homeLesson : Model -> Maybe Lesson
+homeLesson model =
+    let
+        open =
+            List.filter (\l -> not l.done) model.lessons
+
+        f =
+            focus model.profile
+    in
+    if f == "bp" then
+        List.head (List.filter (\l -> l.track == "Blood pressure") open)
+
+    else if f == "glucose" then
+        List.head (List.filter (\l -> l.track == "Type 2" || l.track == "Prediabetes") open)
+
+    else if f == "glp1" then
+        List.head (List.filter (\l -> l.track == "GLP-1") open)
+
+    else if f == "lipids" then
+        List.head (List.filter (\l -> l.track == "Cholesterol") open)
+
+    else
+        List.head open
+
+
+lessonHeroAsset : Lesson -> String
+lessonHeroAsset lesson =
+    if lesson.track == "Blood pressure" then
+        "LifestyleMorning"
+
+    else if lesson.track == "GLP-1" then
+        "LifestyleMeal"
+
+    else if lesson.track == "Cholesterol" then
+        "LifestyleMorning"
+
+    else
+        "LifestyleMeal"
+
+
+coachAsset : String -> String
+coachAsset id =
+    if id == "coach-ava" then
+        "CoachAva"
+
+    else if id == "coach-marcus" then
+        "CoachMarcus"
+
+    else if id == "coach-priya" then
+        "CoachPriya"
+
+    else
+        "CoachJordan"
+
+
+{-| At most two newest notes on Feedback — inbox, not a wall.
+-}
+homeNotes : Model -> List Note
+homeNotes model =
+    case List.head model.notes of
+        Nothing ->
+            []
+
+        Just first ->
+            case List.head (List.drop 1 model.notes) of
+                Nothing ->
+                    [ first ]
+
+                Just second ->
+                    [ first, second ]

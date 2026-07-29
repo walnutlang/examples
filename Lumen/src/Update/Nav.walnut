@@ -1,0 +1,33 @@
+module Update.Nav exposing (update)
+
+import Cmd exposing (Cmd)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+
+
+update : NavMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        SelectTab tab ->
+            ( { model
+                | tab = tab
+                , selectedLesson = Nothing
+                , selectedCoach = Nothing
+                , selectedCircle = Nothing
+                , selectedPost = Nothing
+                , reactionPicker = Nothing
+              }
+            , Cmd.none
+            )
+
+        CloseLesson ->
+            ( { model | selectedLesson = Nothing }, Cmd.none )
+
+        CloseCoach ->
+            ( { model | selectedCoach = Nothing, chatDraft = "" }, Cmd.none )
+
+        CloseCircle ->
+            ( { model | selectedCircle = Nothing, selectedPost = Nothing, communityDraft = "", composeOpen = False, leaveConfirmId = Nothing, reactionPicker = Nothing }, Cmd.none )
+
+        ClosePost ->
+            ( { model | selectedPost = Nothing, replyDraft = "", reactionPicker = Nothing }, Cmd.none )

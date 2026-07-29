@@ -1,0 +1,66 @@
+module Pages.Welcome exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+
+
+view : Model -> View Msg
+view _ =
+    column
+        [ width fill
+        , height fill
+        , bg canvas
+        , paddingXY 28 48
+        , spacing 0
+        ]
+        [ logoMark
+        , el [ height (px 48) ] (text "")
+        , el [ fontSize 12, semibold, fontColor muted ] (text "YOUR DAY, DISTILLED")
+        , el [ height (px 16) ] (text "")
+        , el [ fontSize 36, serif, fontColor ink ]
+            (text "A calm place for everything you have to do.")
+        , el [ height (px 16) ] (text "")
+        , el [ fontSize 16, fontColor inkSoft ]
+            (text "Capture what matters, group the day by morning and afternoon, and finish with room to breathe.")
+        , spacer
+        , button
+            [ onTap (auth GetStarted)
+            , width fill
+            , padding 18
+            , bg accent
+            , rounded 28
+            , fontSize 17
+            , semibold
+            , fontColor white
+            ]
+            [ text "Get started" ]
+        , el [ height (px 16) ] (text "")
+        , button
+            [ onTap (auth SignIn)
+            , width fill
+            , padding 12
+            , fontSize 15
+            , fontColor inkSoft
+            ]
+            [ el [ textCenter, width fill, fontColor inkSoft ] (text "I already have an account") ]
+        , el [ height (px 24) ] (text "")
+        , el [ fontSize 11, fontColor muted, textCenter, width fill ]
+            (text "By continuing you agree to the mock terms.")
+        ]
+
+
+logoMark : View Msg
+logoMark =
+    column [ spacing 10 ]
+        [ row [ spacing 0 ]
+            [ el
+                [ padding 14
+                , rounded 14
+                , bg ink
+                ]
+                (el [ fontSize 28, serif, fontColor white ] (text "d"))
+            ]
+        , el [ fontSize 11, semibold, fontColor inkSoft ] (text "DOVETAIL")
+        ]

@@ -1,0 +1,160 @@
+module Model.Query exposing (..)
+
+import Dict
+import Model.Types exposing (..)
+
+
+todayItems : List Item -> List Item
+todayItems items =
+    List.filter (\item -> item.area == Today) items
+
+
+upcomingItems : List Item -> List Item
+upcomingItems items =
+    List.filter (\item -> item.area == Upcoming) items
+
+
+openToday : List Item -> List Item
+openToday items =
+    List.filter (\item -> not item.done) (todayItems items)
+
+
+doneToday : List Item -> List Item
+doneToday items =
+    List.filter (\item -> item.done) (todayItems items)
+
+
+todayDoneCount : List Item -> Int
+todayDoneCount items =
+    List.length (doneToday items)
+
+
+todayTotalCount : List Item -> Int
+todayTotalCount items =
+    List.length (todayItems items)
+
+
+todayProgress : List Item -> ( Int, Int )
+todayProgress items =
+    ( todayDoneCount items, todayTotalCount items )
+
+
+segmentItems : Segment -> List Item -> List Item
+segmentItems segment items =
+    case segment of
+        SegToday ->
+            todayItems items
+
+        SegUpcoming ->
+            upcomingItems items
+
+        SegAll ->
+            items
+
+
+slotItems : Slot -> List Item -> List Item
+slotItems slot items =
+    List.filter (\item -> item.slot == slot) items
+
+
+countList : String -> List Item -> Int
+countList name items =
+    List.length (List.filter (\item -> not item.done) (List.filter (\item -> item.listName == name) items))
+
+
+countArea : Area -> List Item -> Int
+countArea area items =
+    List.length (List.filter (\item -> not item.done) (List.filter (\item -> item.area == area) items))
+
+
+findItem : Int -> List Item -> Maybe Item
+findItem id items =
+    Dict.get id (List.foldl (\item dict -> Dict.insert item.id item dict) Dict.empty items)
+
+
+itemInArea : Area -> Item -> Bool
+itemInArea area item =
+    if item.done then
+        False
+
+    else
+        item.area == area
+
+
+itemInList : String -> Item -> Bool
+itemInList name item =
+    if item.done then
+        False
+
+    else
+        item.listName == name
+
+
+subtaskDoneCount : List Subtask -> Int
+subtaskDoneCount subs =
+    List.length (List.filter (\s -> s.done) subs)
+
+
+subtaskTotalCount : List Subtask -> Int
+subtaskTotalCount subs =
+    List.length subs
+
+
+subtaskProgress : List Subtask -> ( Int, Int )
+subtaskProgress subs =
+    ( subtaskDoneCount subs, subtaskTotalCount subs )
+
+
+defaultArea : Model -> Area
+defaultArea model =
+    case model.tab of
+        TodayTab ->
+            Today
+
+        CalendarTab ->
+            Upcoming
+
+        ListsTab ->
+            case model.browse of
+                BrowseArea area ->
+                    area
+
+                BrowseRoot ->
+                    Inbox
+
+                BrowseList _ ->
+                    Anytime
+
+        SettingsTab ->
+            Inbox
+
+
+defaultList : Model -> String
+defaultList model =
+    case model.browse of
+        BrowseList name ->
+            name
+
+        BrowseRoot ->
+            model.draftList
+
+        BrowseArea _ ->
+            model.draftList
+
+
+slotTitle : Slot -> String
+slotTitle slot =
+    case slot of
+        Morning ->
+            "MORNING"
+
+        Afternoon ->
+            "AFTERNOON"
+
+        Evening ->
+            "EVENING"
+
+
+greeting : String -> String
+greeting name =
+    "Good morning, " ++ name ++ "."

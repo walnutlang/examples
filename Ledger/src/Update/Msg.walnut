@@ -1,0 +1,70 @@
+module Update.Msg exposing (..)
+
+import Model.Types exposing (..)
+
+
+type Msg
+    = Nav NavMsg
+    | EntryMsg EntryEditMsg
+    | Persist PersistMsg
+
+
+type NavMsg
+    = SelectTab Tab
+    | OpenEntry Int
+    | CloseEntry
+    | StartCompose
+    | CancelCompose
+
+
+type EntryEditMsg
+    = DraftPayee String
+    | DraftCategory String
+    | DraftAmount String
+    | DraftNote String
+    | SaveEntry
+    | DeleteSelected
+
+
+type PersistMsg
+    = GotEntries (List String)
+
+
+nav : NavMsg -> Msg
+nav =
+    Nav
+
+
+entryMsg : EntryEditMsg -> Msg
+entryMsg =
+    EntryMsg
+
+
+persistMsg : PersistMsg -> Msg
+persistMsg =
+    Persist
+
+
+onPayee : String -> Msg
+onPayee text =
+    EntryMsg (DraftPayee text)
+
+
+onCategory : String -> Msg
+onCategory text =
+    EntryMsg (DraftCategory text)
+
+
+onAmount : String -> Msg
+onAmount text =
+    EntryMsg (DraftAmount text)
+
+
+onNote : String -> Msg
+onNote text =
+    EntryMsg (DraftNote text)
+
+
+onGotEntries : List String -> Msg
+onGotEntries payloads =
+    Persist (GotEntries payloads)

@@ -1,0 +1,173 @@
+module Pages.Account exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Care as Care
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+import View.Chrome exposing (..)
+
+
+view : Model -> View Msg
+view model =
+    let
+        open =
+            Care.visibleCommitments model
+
+        series =
+            Care.visibleTrends model
+    in
+    column [ width fill, height fill, bg canvas ]
+        [ scroll
+            [ spacing 18
+            , width fill
+            , height fill
+            , paddingXY 20 16
+            , scrollBottomInset 100
+            , onRefresh (account RefreshWeek)
+            ]
+            [ eyebrow "PROGRESS"
+            , displayTitle "Over time"
+            , el [ fontSize 15, fontColor inkSoft, width fill ]
+                (text "Trends from your sources — why connecting sensors pays off.")
+            , weekOverview model
+            , column [ spacing 12, width fill ]
+                (List.map trendCard series)
+            , el [ fontSize 12, semibold, fontColor teal ] (text "THIS WEEK’S PROMISES")
+            , progressBar (keptCount open) (List.length open)
+            , column [ spacing 8, width fill ]
+                (List.map commitmentRow open)
+            , button
+                [ onTap (account OpenCheckIn)
+                , bg teal
+                , rounded 16
+                , padding 14
+                , width fill
+                ]
+                [ el [ fontSize 15, semibold, fontColor white, textCenter, width fill ] (text "Weekly check-in") ]
+            , checkInSheet model
+            , el [ height (px 28) ] (text "")
+            ]
+        ]
+
+
+weekOverview : Model -> View Msg
+weekOverview model =
+    card []
+        [ el [ fontSize 12, semibold, fontColor teal ] (text "KEPT DAYS")
+        , row [ width fill, centerY ]
+            [ weekDayChip "M" (dayMark model 0)
+            , spacer
+            , weekDayChip "T" (dayMark model 1)
+            , spacer
+            , weekDayChip "W" (dayMark model 2)
+            , spacer
+            , weekDayChip "T" (dayMark model 3)
+            , spacer
+            , weekDayChip "F" (dayMark model 4)
+            , spacer
+            , weekDayChip "S" (dayMark model 5)
+            , spacer
+            , weekDayChip "S" (dayMark model 6)
+            ]
+        , el [ fontSize 16, semibold, fontColor ink, width fill ]
+            (text (Care.weekCaption model))
+        , el [ fontSize 14, fontColor inkSoft, width fill ]
+            (text "Missed days stay soft. Pick up the run whenever you’re ready.")
+        ]
+
+
+dayMark : Model -> Int -> String
+dayMark model index =
+    case List.head (List.drop index model.weekDays) of
+        Nothing ->
+            "empty"
+
+        Just d ->
+            d.mark
+
+
+trendCard : TrendSeries -> View Msg
+trendCard series =
+    let
+        maxV =
+            Care.trendMax series
+    in
+    card []
+        [ row [ width fill, centerY ]
+            [ el [ fontSize 15, semibold, fontColor ink ] (text series.title)
+            , spacer
+            , el [ fontSize 12, fontColor muted ] (text series.unit)
+            ]
+        , row [ width fill, spacing 6, centerY ]
+            (List.map (\pt -> trendBarColumn maxV pt) series.points)
+        ]
+
+
+trendBarColumn : Int -> TrendPoint -> View Msg
+trendBarColumn maxV point =
+    let
+        barH =
+            Care.barHeight point.value maxV
+
+        padH =
+            if barH > 56 then
+                0
+
+            else
+                56 - barH
+    in
+    column [ spacing 6, width fill ]
+        [ column [ height (px 56), width fill ]
+            [ el [ height (px padH), width fill ] (text "")
+            , el
+                [ height (px barH)
+                , width fill
+                , bg teal
+                , rounded 6
+                ]
+                (text "")
+            ]
+        , el [ fontSize 11, semibold, fontColor muted, textCenter, width fill ]
+            (text point.label)
+        ]
+
+
+keptCount : List Commitment -> Int
+keptCount commitments =
+    List.length (List.filter (\c -> c.kept) commitments)
+
+
+commitmentRow : Commitment -> View Msg
+commitmentRow c =
+    taskRow c.symbol c.title c.detail c.kept (account (ToggleCommitment c.id))
+
+
+checkInSheet : Model -> View Msg
+checkInSheet model =
+    if model.checkInOpen then
+        card [ bg goldSoft, border 0 goldSoft ]
+            [ el [ fontSize 20, serif, fontColor ink, paddingXY 0 4 ]
+                (text "Mark the week kept?")
+            , el [ fontSize 14, fontColor inkSoft ]
+                (text "Confirms open promises and softens today’s ring on Progress.")
+            , row [ spacing 10, width fill ]
+                [ button
+                    [ onTap (account CloseCheckIn)
+                    , padding 12
+                    , rounded 12
+                    , bg chip
+                    ]
+                    [ text "Not now" ]
+                , button
+                    [ onTap (account ConfirmCheckIn)
+                    , bg teal
+                    , rounded 14
+                    , padding 12
+                    ]
+                    [ el [ fontSize 15, semibold, fontColor white ] (text "Yes, kept") ]
+                ]
+            ]
+
+    else
+        none

@@ -1,0 +1,110 @@
+module Update.Health exposing (update, bootstrap)
+
+import Cmd exposing (Cmd)
+import Port
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+
+
+bootstrap : Model -> Cmd Msg
+bootstrap model =
+    refreshCmd model
+
+
+refreshCmd : Model -> Cmd Msg
+refreshCmd model =
+    if model.fitbitDemo || model.fitbitConnected then
+        Port.cmd "fitbit.sync" (demoFlag model) onFitbit
+
+    else
+        Port.cmd "healthkit.query" "summary" onVitals
+
+
+demoFlag : Model -> String
+demoFlag model =
+    if model.fitbitDemo then
+        "demo"
+
+    else
+        "live"
+
+
+update : HealthMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        GotHealthAuth reply ->
+            let
+                ok =
+                    String.startsWith "ok" reply || String.startsWith "stub" reply
+            in
+            ( { model
+                | hkReady = ok
+                , statusLine =
+                    if ok then
+                        "HealthKit ready"
+
+                    else
+                        "HealthKit: " ++ reply
+              }
+            , Port.cmd "healthkit.query" "summary" onVitals
+            )
+
+        GotVitals payload ->
+            ( { model | vitals = parseVitals payload "HealthKit", statusLine = "Updated from HealthKit" }
+            , Cmd.none
+            )
+
+        GotFitbit payload ->
+            if String.startsWith "ERR" payload then
+                ( { model | statusLine = payload }, Port.cmd "healthkit.query" "summary" onVitals )
+
+            else
+                ( { model
+                    | vitals = parseVitals payload "Fitbit"
+                    , fitbitConnected = not model.fitbitDemo
+                    , statusLine =
+                        if model.fitbitDemo then
+                            "Fitbit demo data"
+
+                        else
+                            "Synced from Fitbit"
+                  }
+                , Cmd.none
+                )
+
+
+parseVitals : String -> String -> Vitals
+parseVitals payload source =
+    { steps = fieldInt payload "steps"
+    , heartRate = fieldInt payload "hr"
+    , glucose = fieldInt payload "glucose"
+    , bpSys = fieldInt payload "bpSys"
+    , bpDia = fieldInt payload "bpDia"
+    , weight = fieldInt payload "weight"
+    , source = source
+    }
+
+
+fieldInt : String -> String -> Int
+fieldInt payload key =
+    let
+        prefix =
+            key ++ "="
+
+        matches =
+            List.filterMap
+                (\line ->
+                    if String.startsWith prefix line then
+                        String.toInt (String.dropLeft (String.length prefix) line)
+
+                    else
+                        Nothing
+                )
+                (String.split "\n" payload)
+    in
+    case List.head matches of
+        Just n ->
+            n
+
+        Nothing ->
+            0

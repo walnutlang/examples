@@ -1,0 +1,16 @@
+module Update.Auth exposing (update)
+
+import Cmd exposing (Cmd)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import Update.Persist exposing (andPersist)
+
+
+update : AuthMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        GetStarted ->
+            andPersist { model | authed = True }
+
+        SignIn ->
+            andPersist { model | authed = True }

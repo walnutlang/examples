@@ -1,0 +1,415 @@
+module Pages.Learn exposing (catalog, lessonDetail, coachChat)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+import View.Chrome exposing (..)
+
+
+catalog : Model -> View Msg
+catalog model =
+    column [ width fill, height fill, bg canvas ]
+        [ scroll
+            [ spacing 16
+            , width fill
+            , height fill
+            , paddingXY 22 16
+            , scrollBottomInset 100
+            , onRefresh (learn (SetLearnSegment model.learnSegment))
+            ]
+            [ eyebrow "LEARNING"
+            , displayTitle "Curriculum"
+            , el [ fontSize 15, fontColor inkSoft ]
+                (text "Lessons and coaches for your plan.")
+            , segmentBar model
+            , catalogBody model
+            , el [ height (px 24) ] (text "")
+            ]
+        ]
+
+
+segmentBar : Model -> View Msg
+segmentBar model =
+    row
+        [ width fill
+        , padding 4
+        , bg chip
+        , rounded 16
+        ]
+        [ segmentChip (model.learnSegment == 0) "Lessons" (learn (SetLearnSegment 0))
+        , segmentChip (model.learnSegment == 1) "Coaches" (learn (SetLearnSegment 1))
+        ]
+
+
+catalogBody : Model -> View Msg
+catalogBody model =
+    if model.learnSegment == 1 then
+        coachGrid model
+
+    else
+        column [ spacing 12, width fill ]
+            (List.map (lessonRow model) (visibleLessons model))
+
+
+visibleLessons : Model -> List Lesson
+visibleLessons model =
+    List.filter (lessonVisible model.profile) model.lessons
+
+
+lessonVisible : Profile -> Lesson -> Bool
+lessonVisible profile lesson =
+    if lesson.track == "Agency" then
+        True
+
+    else if lesson.track == "Type 2" then
+        profile.type2
+
+    else if lesson.track == "Prediabetes" then
+        profile.prediabetes
+
+    else if lesson.track == "Blood pressure" then
+        profile.hypertension
+
+    else if lesson.track == "Cholesterol" then
+        profile.lipids
+
+    else if lesson.track == "GLP-1" then
+        profile.glp1
+
+    else
+        True
+
+
+lessonRow : Model -> Lesson -> View Msg
+lessonRow model lesson =
+    el
+        [ onTap (learn (OpenLesson lesson.id))
+        , width fill
+        ]
+        (card []
+            [ row [ spacing 14, centerY, width fill ]
+                [ lessonThumb (trackSymbol lesson.track) (trackWell lesson.track) teal
+                , column [ spacing 4, width fill ]
+                    [ row [ width fill, centerY ]
+                        [ el [ fontSize 12, semibold, fontColor teal ] (text lesson.track)
+                        , spacer
+                        , el [ fontSize 12, fontColor muted ]
+                            (text
+                                (String.fromInt lesson.minutes
+                                    ++ " min"
+                                    ++ (if lesson.done then
+                                            " · Done"
+
+                                        else
+                                            ""
+                                       )
+                                )
+                            )
+                        ]
+                    , el [ fontSize 18, serif, fontColor ink ] (text lesson.title)
+                    , el [ fontSize 13, fontColor muted ] (text ("With " ++ coachName model lesson.coachId))
+                    ]
+                ]
+            ]
+        )
+
+
+trackSymbol : String -> String
+trackSymbol track =
+    if track == "Type 2" then
+        "drop.fill"
+
+    else if track == "Prediabetes" then
+        "chart.line.uptrend.xyaxis"
+
+    else if track == "Blood pressure" then
+        "heart.fill"
+
+    else if track == "Cholesterol" then
+        "pills.fill"
+
+    else if track == "GLP-1" then
+        "fork.knife"
+
+    else
+        "person.fill"
+
+
+trackWell : String -> Color
+trackWell track =
+    if track == "Blood pressure" then
+        sageSoft
+
+    else if track == "GLP-1" then
+        goldSoft
+
+    else
+        tealSoft
+
+
+coachGrid : Model -> View Msg
+coachGrid model =
+    column [ spacing 12, width fill ]
+        (coachRows model model.coaches)
+
+
+coachRows : Model -> List Coach -> List (View Msg)
+coachRows model coaches =
+    case List.head coaches of
+        Nothing ->
+            []
+
+        Just a ->
+            case List.head (List.drop 1 coaches) of
+                Nothing ->
+                    [ row [ spacing 12, width fill ]
+                        [ coachTile model a
+                        , el [ width fill ] (text "")
+                        ]
+                    ]
+
+                Just b ->
+                    List.append
+                        [ row [ spacing 12, width fill ]
+                            [ coachTile model a
+                            , coachTile model b
+                            ]
+                        ]
+                        (coachRows model (List.drop 2 coaches))
+
+
+coachTile : Model -> Coach -> View Msg
+coachTile model coach =
+    el
+        [ onTap (learn (OpenCoach coach.id))
+        , width fill
+        ]
+        (el
+            [ width fill
+            , padding 12
+            , bg surface
+            , rounded 18
+            , border 1 hairline
+            ]
+            (column [ spacing 8, width fill ]
+                [ coachPhoto (coachAsset coach.id)
+                , el [ fontSize 15, semibold, fontColor ink ] (text (shortName coach.name))
+                , el [ fontSize 12, fontColor teal ] (text coach.role)
+                , el [ fontSize 12, fontColor inkSoft ] (text coach.specialty)
+                , el [ fontSize 11, fontColor muted ] (text (lastInteraction model coach.id))
+                ]
+            )
+        )
+
+
+coachAsset : String -> String
+coachAsset id =
+    if id == "coach-ava" then
+        "CoachAva"
+
+    else if id == "coach-marcus" then
+        "CoachMarcus"
+
+    else if id == "coach-priya" then
+        "CoachPriya"
+
+    else
+        "CoachJordan"
+
+
+shortName : String -> String
+shortName name =
+    case List.head (String.split "," name) of
+        Nothing ->
+            name
+
+        Just part ->
+            String.trim part
+
+
+lastInteraction : Model -> String -> String
+lastInteraction model coachId =
+    case List.head (List.reverse (threadLines model coachId)) of
+        Nothing ->
+            "No messages yet"
+
+        Just line ->
+            "Last · " ++ shorten 42 line.body
+
+
+shorten : Int -> String -> String
+shorten n s =
+    if String.length s <= n then
+        s
+
+    else
+        String.left n s ++ "…"
+
+
+coachName : Model -> String -> String
+coachName model id =
+    case List.head (List.filter (\c -> c.id == id) model.coaches) of
+        Nothing ->
+            "your coach"
+
+        Just c ->
+            shortName c.name
+
+
+lessonDetail : Model -> String -> View Msg
+lessonDetail model id =
+    case List.head (List.filter (\l -> l.id == id) model.lessons) of
+        Nothing ->
+            el [ padding 24 ] (text "Lesson missing")
+
+        Just l ->
+            column [ width fill, height fill, bg canvas ]
+                [ scroll
+                    [ spacing 16
+                    , width fill
+                    , height fill
+                    , paddingXY 22 16
+                    , scrollBottomInset 40
+                    ]
+                    [ backBar "Curriculum" (nav CloseLesson)
+                    , row [ spacing 12, centerY ]
+                        [ lessonThumb (trackSymbol l.track) (trackWell l.track) teal
+                        , el [ fontSize 12, semibold, fontColor teal ] (text l.track)
+                        ]
+                    , el [ fontSize 30, serif, fontColor ink ] (text l.title)
+                    , el [ fontSize 16, fontColor inkSoft ] (text l.body)
+                    , button
+                        [ onTap (learn (OpenCoach l.coachId))
+                        , width fill
+                        , padding 14
+                        , rounded 14
+                        , bg tealSoft
+                        ]
+                        [ el [ fontSize 15, semibold, fontColor teal ]
+                            (text ("Ask " ++ coachName model l.coachId))
+                        ]
+                    , button
+                        [ onTap (learn (CompleteLesson l.id))
+                        , bg teal
+                        , rounded 14
+                        , padding 14
+                        , width fill
+                        ]
+                        [ el [ fontSize 15, semibold, fontColor white, textCenter, width fill ]
+                            (text
+                                (if l.done then
+                                    "Completed"
+
+                                 else
+                                    "Mark complete"
+                                )
+                            )
+                        ]
+                    ]
+                ]
+
+
+coachChat : Model -> String -> View Msg
+coachChat model id =
+    case List.head (List.filter (\c -> c.id == id) model.coaches) of
+        Nothing ->
+            el [ padding 24 ] (text "Coach missing")
+
+        Just coach ->
+            column [ width fill, height fill, bg canvas ]
+                [ column
+                    [ width fill
+                    , paddingXY 22 12
+                    , spacing 8
+                    , bg surface
+                    , border 1 hairline
+                    ]
+                    [ backBar "Coaches" (nav CloseCoach)
+                    , row [ spacing 12, centerY ]
+                        [ coachPhotoSm (coachAsset coach.id)
+                        , column [ spacing 2, width fill ]
+                            [ el [ fontSize 18, semibold, fontColor ink ] (text coach.name)
+                            , el [ fontSize 13, fontColor teal ] (text coach.role)
+                            , el [ fontSize 13, fontColor muted ] (text coach.specialty)
+                            ]
+                        ]
+                    ]
+                , scroll
+                    [ spacing 10
+                    , width fill
+                    , height fill
+                    , paddingXY 22 16
+                    , scrollBottomInset 90
+                    ]
+                    (List.map chatBubble (threadLines model id)
+                        ++ [ el [ height (px 8) ] (text "") ]
+                    )
+                , column
+                    [ width fill
+                    , paddingXY 16 12
+                    , bg surface
+                    , border 1 hairline
+                    , spacing 8
+                    ]
+                    [ textField
+                        [ key "chat"
+                        , width fill
+                        , height (px 48)
+                        , padding 14
+                        , bg canvas
+                        , rounded 14
+                        , content model.chatDraft
+                        , placeholder "Message your coach…"
+                        , onInput (\s -> learn (ChatDraftChanged s))
+                        , fontSize 16
+                        ]
+                    , button
+                        [ onTap (learn SendChat)
+                        , bg teal
+                        , rounded 14
+                        , padding 14
+                        , width fill
+                        ]
+                        [ el [ fontSize 15, semibold, fontColor white, textCenter, width fill ] (text "Send") ]
+                    ]
+                ]
+
+
+threadLines : Model -> String -> List ChatLine
+threadLines model coachId =
+    case List.head (List.filter (\t -> t.coachId == coachId) model.threads) of
+        Nothing ->
+            []
+
+        Just t ->
+            t.lines
+
+
+chatBubble : ChatLine -> View Msg
+chatBubble line =
+    if line.fromMe then
+        row [ width fill ]
+            [ spacer
+            , el
+                [ padding 12
+                , rounded 16
+                , bg meBubble
+                , fontSize 15
+                , fontColor white
+                ]
+                (text line.body)
+            ]
+
+    else
+        row [ width fill ]
+            [ el
+                [ padding 12
+                , rounded 16
+                , bg coachBubble
+                , fontSize 15
+                , fontColor ink
+                ]
+                (text line.body)
+            , spacer
+            ]

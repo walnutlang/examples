@@ -1,0 +1,38 @@
+module Update.App exposing (update, subscriptions)
+
+import Sub exposing (Sub)
+import Port
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import Update.Nav as Nav
+import Update.Learn as Learn
+import Update.Community as Community
+import Update.Account as Account
+import Update.Agency as Agency
+import Update.Feedback as Feedback
+import Update.Persist as Persist
+import Update.Health as Health
+import Update.Intent as Intent
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update =
+    dispatch
+        [ Nav.update
+        , Learn.update
+        , Community.update
+        , Account.update
+        , Agency.update
+        , Feedback.update
+        , Persist.update
+        , Health.update
+        , Intent.update
+        ]
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.batch
+        [ Port.sub "fitbit.oauth.callback" onFitbit
+        , Port.sub "appIntent" onAppIntent
+        ]

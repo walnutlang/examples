@@ -1,0 +1,52 @@
+module View.Layout exposing (iconWell, squareHit, trailingFlag)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import View.Theme exposing (..)
+
+
+-- Fixed 36×36 leading well — never size from padding + SF Symbol bounds.
+iconWell : Color -> Color -> String -> View msg
+iconWell wellBg iconTint symbol =
+    el
+        [ width (px 36)
+        , height (px 36)
+        , rounded 12
+        , bg wellBg
+        , centerX
+        ]
+        (icon [ tint iconTint, fontSize 15 ] symbol)
+
+
+-- Fixed square chrome control (back, close, toolbar icons).
+squareHit : Color -> Color -> String -> View msg
+squareHit wellBg iconTint symbol =
+    el
+        [ width (px 32)
+        , height (px 32)
+        , rounded 14
+        , bg wellBg
+        , centerX
+        ]
+        (icon [ tint iconTint, fontSize 14 ] symbol)
+
+
+-- Always-present trailing flag slot so task rows share one trailing edge.
+trailingFlag : Priority -> View msg
+trailingFlag p =
+    el
+        [ width (px 16)
+        , height (px 16)
+        , centerX
+        ]
+        (flagIcon p)
+
+
+flagIcon : Priority -> View msg
+flagIcon p =
+    case p of
+        PriorityHigh ->
+            icon [ tint accent, fontSize 14 ] "flag.fill"
+
+        PriorityNone ->
+            text ""

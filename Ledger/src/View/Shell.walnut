@@ -1,0 +1,140 @@
+module View.Shell exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Query exposing (findEntry)
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+import View.Books
+import View.Summary
+import View.Entry
+
+
+view : Model -> View Msg
+view model =
+    column [ width fill, height fill, bg canvas ]
+        [ pageBody model
+        , fab model
+        , View.Entry.compose model
+        ]
+
+
+{-| Textbook: `tabBar` root; each tab is a `navStack` (title / icon on the stack).
+-}
+pageBody : Model -> View Msg
+pageBody model =
+    tabBar
+        [ key "ledger-tabs"
+        , width fill
+        , height fill
+        , propInt "selected" (tabIndex model.tab)
+        ]
+        (\i -> nav (SelectTab (tabFromIndex i)))
+        [ booksStack model
+        , summaryStack model
+        ]
+
+
+booksStack : Model -> View Msg
+booksStack model =
+    navStack
+        [ key "books-nav"
+        , content "Books"
+        , propString "systemImage" "list.bullet.rectangle"
+        , width fill
+        , height fill
+        ]
+        (nav CloseEntry)
+        (booksPages model)
+
+
+summaryStack : Model -> View Msg
+summaryStack model =
+    navStack
+        [ key "summary-nav"
+        , content "Summary"
+        , propString "systemImage" "chart.bar"
+        , width fill
+        , height fill
+        ]
+        (nav CloseEntry)
+        [ el [ key "summary-root", width fill, height fill ] (View.Summary.view model) ]
+
+
+booksPages : Model -> List (View Msg)
+booksPages model =
+    case model.tab of
+        BooksTab ->
+            case model.selectedId of
+                Just id ->
+                    case findEntry id model.entries of
+                        Just e ->
+                            [ el [ key "books-root", width fill, height fill ] (View.Books.view model)
+                            , el [ key ("entry-" ++ String.fromInt id), width fill, height fill ]
+                                (View.Entry.detail e)
+                            ]
+
+                        Nothing ->
+                            [ el [ key "books-root", width fill, height fill ] (View.Books.view model) ]
+
+                Nothing ->
+                    [ el [ key "books-root", width fill, height fill ] (View.Books.view model) ]
+
+        _ ->
+            [ el [ key "books-root", width fill, height fill ] (View.Books.view model) ]
+
+
+tabIndex : Tab -> Int
+tabIndex tab =
+    case tab of
+        BooksTab ->
+            0
+
+        SummaryTab ->
+            1
+
+
+tabFromIndex : Int -> Tab
+tabFromIndex i =
+    if i == 1 then
+        SummaryTab
+
+    else
+        BooksTab
+
+
+fab : Model -> View Msg
+fab model =
+    if model.composing then
+        none
+
+    else
+        case model.selectedId of
+            Just _ ->
+                none
+
+            Nothing ->
+                case model.tab of
+                    SummaryTab ->
+                        none
+
+                    BooksTab ->
+                        row
+                            [ floatBottom
+                            , key "ledger-fab"
+                            , width fill
+                            , paddingXY 22 0
+                            ]
+                            [ spacer
+                            , column [ spacing 0 ]
+                                [ button
+                                    [ onTap (nav StartCompose)
+                                    , bg accent
+                                    , rounded 28
+                                    , padding 16
+                                    , fontColor white
+                                    ]
+                                    [ icon [ tint white, fontSize 22 ] "plus" ]
+                                , el [ height (px 78) ] (text "")
+                                ]
+                            ]

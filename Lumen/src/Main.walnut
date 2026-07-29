@@ -1,0 +1,18 @@
+module Main exposing (main)
+
+import Walnut
+import Model.Types exposing (..)
+import Model.Init exposing (init)
+import Update.Msg exposing (..)
+import Update.App exposing (update, subscriptions)
+import View.Shell exposing (view)
+
+
+main : Walnut.Program Model Msg
+main =
+    Walnut.element
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }

@@ -1,0 +1,187 @@
+module View exposing (view)
+
+import Ui exposing (..)
+import Types exposing (..)
+import Update exposing (..)
+
+
+{-| Prefer `native "UI…"` over curated helpers (`switch`, `button`, `textField`,
+`tabBar`, `sheet`, …). Layout still uses `column` / `scroll` / `row` / `el` /
+`text` — those are the only remaining sugar; every control is a real UIKit class.
+-}
+view : Model -> View Msg
+view model =
+    scroll
+        [ key "native-catalog"
+        , width fill
+        , height fill
+        , spacing 18
+        , paddingXY 20 24
+        , bg canvas
+        ]
+        [ native "UILabel"
+            [ propString "text" "NATIVE CONTROLS"
+            , fontSize 13
+            , fontColor muted
+            ]
+        , native "UILabel"
+            [ propString "text" "No switch / button / textField / tabBar sugar — UIKit by class name."
+            , fontSize 15
+            , fontColor ink
+            ]
+        , sectionTitle "UISwitch"
+        , row [ width fill, centerY, spacing 12 ]
+            [ native "UILabel"
+                [ propString "text" (onOff model.lit)
+                , fontSize 17
+                , fontColor ink
+                , width fill
+                ]
+            , native "UISwitch"
+                [ propBool "on" model.lit
+                , onNativeBool "valueChanged" SetLit
+                ]
+            ]
+        , sectionTitle "UISlider"
+        , native "UILabel"
+            [ propString "text" ("volume  " ++ pct model.volume)
+            , fontSize 15
+            , fontColor ink
+            ]
+        , native "UISlider"
+            [ propFloat "value" model.volume
+            , propFloat "minimumValue" 0.0
+            , propFloat "maximumValue" 1.0
+            , width fill
+            , onNativeFloat "valueChanged" "value" SetVolume
+            ]
+        , sectionTitle "UIStepper + UIProgressView"
+        , row [ width fill, centerY, spacing 12 ]
+            [ native "UILabel"
+                [ propString "text" ("count  " ++ String.fromInt model.count)
+                , fontSize 17
+                , fontColor ink
+                , width fill
+                ]
+            , native "UIStepper"
+                [ propFloat "value" (toFloat model.count)
+                , propFloat "minimumValue" 0.0
+                , propFloat "maximumValue" 10.0
+                , propFloat "stepValue" 1.0
+                , onNativeInt "valueChanged" "value" SetCount
+                ]
+            ]
+        , native "UIProgressView"
+            [ propFloat "progress" ((toFloat model.count) / 10.0)
+            , width fill
+            ]
+        , sectionTitle "UITextField"
+        , native "UITextField"
+            [ propString "text" model.note
+            , propString "placeholder" "UITextField"
+            , propInt "borderStyle" 3
+            , width fill
+            , height (px 44)
+            , bg surface
+            , onNativeString "editingChanged" "text" SetNote
+            ]
+        , native "UILabel"
+            [ propString "text" ("echo  " ++ model.note)
+            , fontSize 14
+            , fontColor muted
+            ]
+        , sectionTitle "UIButton"
+        , row [ width fill, centerY, spacing 12 ]
+            [ native "UILabel"
+                [ propString "text" "Bump count"
+                , fontSize 15
+                , fontColor ink
+                , width fill
+                ]
+            , native "UIButton"
+                [ propString "title" "Bump"
+                , height (px 44)
+                , width (px 88)
+                , bg accent
+                , rounded 10
+                , onNative "touchUpInside" Bump
+                ]
+            ]
+        , sectionTitle "UISegmentedControl"
+        , native "UISegmentedControl"
+            [ propString "segments" "One,Two,Three"
+            , propInt "selectedSegmentIndex" model.segment
+            , width fill
+            , onNativeInt "valueChanged" "selectedSegmentIndex" SetSegment
+            ]
+        , native "UILabel"
+            [ propString "text" ("segment  " ++ String.fromInt model.segment)
+            , propFloat "font.pointSize" 15.0
+            , fontColor ink
+            ]
+        , sectionTitle "UIActivityIndicatorView"
+        , native "UIActivityIndicatorView"
+            [ propBool "animating" model.lit
+            , propInt "activityIndicatorViewStyle" 100
+            , tint accent
+            ]
+        , sectionTitle "UIDatePicker"
+        , native "UIDatePicker"
+            [ propInt "datePickerMode" 1
+            , onNativePosix "valueChanged" "date" SetDate
+            ]
+        , native "UILabel"
+            [ propString "text" ("picked ms  " ++ String.fromInt model.pickedMs)
+            , fontSize 13
+            , fontColor muted
+            ]
+        , el [ height (px 40) ] (text "")
+        ]
+
+
+sectionTitle : String -> View Msg
+sectionTitle label =
+    native "UILabel"
+        [ propString "text" label
+        , fontSize 12
+        , fontColor muted
+        ]
+
+
+onOff : Bool -> String
+onOff lit =
+    if lit then
+        "on"
+
+    else
+        "off"
+
+
+pct : Float -> String
+pct v =
+    String.fromFloat (v * 100.0) ++ "%"
+
+
+canvas : Color
+canvas =
+    rgb255 242 242 247
+
+
+surface : Color
+surface =
+    rgb255 255 255 255
+
+
+ink : Color
+ink =
+    rgb255 28 28 30
+
+
+muted : Color
+muted =
+    rgb255 142 142 147
+
+
+accent : Color
+accent =
+    rgb255 0 122 255

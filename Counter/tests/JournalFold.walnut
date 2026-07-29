@@ -1,0 +1,71 @@
+module JournalFold exposing (main)
+
+{-| Semantic journal fold: for Counter, `goto N` is List.foldl of `update`
+over msgs `[0…N]`. This suite locks that without UIKit / the debug agent.
+-}
+
+import Main exposing (Model, Msg(..), init, update)
+import Test exposing (..)
+
+
+fold : List Msg -> Model
+fold msgs =
+    List.foldl (\msg model -> update msg model) init msgs
+
+
+script : List Msg
+script =
+    [ Increment
+    , Increment
+    , Decrement
+    , Reset
+    , Increment
+    ]
+
+
+prefix : Int -> List Msg -> List Msg
+prefix n msgs =
+    List.take n msgs
+
+
+liveAfter : List Msg -> Int
+liveAfter msgs =
+    (fold msgs).count
+
+
+main =
+    format
+        (run
+            (describe "Counter journal fold"
+                [ test "empty fold is init"
+                    (equalInt 0 (fold []).count)
+                , test "one Increment"
+                    (equalInt 1 (fold [ Increment ]).count)
+                , test "Inc Inc"
+                    (equalInt 2 (fold [ Increment, Increment ]).count)
+                , test "Inc Inc Dec"
+                    (equalInt 1 (fold [ Increment, Increment, Decrement ]).count)
+                , test "Reset clears"
+                    (equalInt 0 (fold [ Increment, Increment, Reset ]).count)
+                , test "full script tip"
+                    (equalInt 1 (fold script).count)
+                , test "prefix 0 matches init"
+                    (equalInt init.count (liveAfter (prefix 0 script)))
+                , test "prefix 1"
+                    (equalInt 1 (liveAfter (prefix 1 script)))
+                , test "prefix 2"
+                    (equalInt 2 (liveAfter (prefix 2 script)))
+                , test "prefix 3"
+                    (equalInt 1 (liveAfter (prefix 3 script)))
+                , test "prefix 4"
+                    (equalInt 0 (liveAfter (prefix 4 script)))
+                , test "prefix 5 tip"
+                    (equalInt 1 (liveAfter (prefix 5 script)))
+                , test "nested update matches fold (Inc Inc Dec)"
+                    (equalInt
+                        (update Decrement (update Increment (update Increment init))).count
+                        (fold [ Increment, Increment, Decrement ]).count
+                    )
+                ]
+            )
+        )

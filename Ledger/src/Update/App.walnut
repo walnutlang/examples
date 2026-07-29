@@ -1,0 +1,23 @@
+module Update.App exposing (update, subscriptions)
+
+import Cmd exposing (Cmd)
+import Sub exposing (Sub)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import Update.Nav as Nav
+import Update.Entry as EntryEdit
+import Update.Persist as Persist
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update =
+    dispatch
+        [ Nav.update
+        , EntryEdit.update
+        , Persist.update
+        ]
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.none

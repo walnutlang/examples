@@ -1,0 +1,133 @@
+module View.Entry exposing (detail, compose)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Query exposing (..)
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+
+
+detail : Entry -> View Msg
+detail e =
+    column [ width fill, height fill, bg canvas, paddingXY 22 18, spacing 16 ]
+        [ el
+            [ onTap (nav CloseEntry)
+            , paddingXY 0 4
+            ]
+            (el [ fontSize 16, fontColor accent ] (text "< Books"))
+        , el [ fontSize 12, semibold, fontColor muted ] (text e.category)
+        , el [ fontSize 30, serif, fontColor ink ] (text e.payee)
+        , el [ fontSize 24, fontColor (amountColor e) ]
+            (text (formatEntryAmount e))
+        , el [ fontSize 14, fontColor inkSoft ] (text e.date)
+        , noteBlock e.note
+        , button
+            [ onTap (entryMsg DeleteSelected)
+            , width fill
+            , padding 14
+            , rounded 16
+            , bg chip
+            , fontColor expense
+            ]
+            [ el [ textCenter, width fill, fontColor expense ] (text "Delete entry") ]
+        ]
+
+
+compose : Model -> View Msg
+compose model =
+    if model.composing then
+        overlay [ fade, slideUp ]
+            (column
+                [ key "compose-entry"
+                , width fill
+                , spacing 14
+                , paddingXY 20 20
+                , rounded 28
+                , bg surface
+                ]
+                [ row [ width fill, centerY ]
+                    [ button
+                        [ onTap (nav CancelCompose)
+                        , padding 6
+                        , fontColor accent
+                        ]
+                        [ el [ fontColor accent ] (text "Cancel") ]
+                    , spacer
+                    , el [ fontSize 12, semibold, fontColor muted ] (text "NEW LINE")
+                    , spacer
+                    , button
+                        [ onTap (EntryMsg SaveEntry)
+                        , padding 6
+                        , fontColor accent
+                        ]
+                        [ text "Save" ]
+                    ]
+                , textField
+                    [ key "payee"
+                    , content model.draftPayee
+                    , placeholder "Payee"
+                    , onInput onPayee
+                    , fontSize 24
+                    , serif
+                    , fontColor ink
+                    , bg (rgba 0.0 0.0 0.0 0.0)
+                    , width fill
+                    ]
+                , textField
+                    [ key "amount"
+                    , content model.draftAmount
+                    , placeholder "Amount (blank = $0)"
+                    , onInput onAmount
+                    , fontSize 18
+                    , fontColor ink
+                    , bg (rgba 0.0 0.0 0.0 0.0)
+                    , width fill
+                    ]
+                , textField
+                    [ key "category"
+                    , content model.draftCategory
+                    , placeholder "Category"
+                    , onInput onCategory
+                    , fontSize 16
+                    , fontColor inkSoft
+                    , bg (rgba 0.0 0.0 0.0 0.0)
+                    , width fill
+                    ]
+                , textField
+                    [ key "note"
+                    , content model.draftNote
+                    , placeholder "Note"
+                    , onInput onNote
+                    , fontSize 16
+                    , fontColor inkSoft
+                    , bg (rgba 0.0 0.0 0.0 0.0)
+                    , width fill
+                    ]
+                , el [ height (px 24) ] (text "")
+                ]
+            )
+
+    else
+        none
+
+
+noteBlock : String -> View Msg
+noteBlock note =
+    if String.isEmpty note then
+        none
+
+    else
+        column [ spacing 6, width fill ]
+            [ el [ fontSize 12, semibold, fontColor muted ] (text "NOTE")
+            , el [ fontSize 16, fontColor inkSoft ] (text note)
+            ]
+
+
+amountColor : Entry -> Color
+amountColor e =
+    case e.flow of
+        Out ->
+            expense
+
+        In ->
+            income

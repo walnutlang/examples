@@ -1,0 +1,86 @@
+module Pages.Lists exposing (areaView, listView, root)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Query exposing (..)
+import Update.Msg exposing (..)
+import View.Chrome exposing (listHeader)
+import View.Layout exposing (iconWell)
+import View.Task exposing (tasksBlock)
+import View.Theme exposing (..)
+
+
+root : Model -> View Msg
+root model =
+    column [ width fill, height fill, bg canvas ]
+        [ scroll [ spacing 14, width fill, height fill, paddingXY 22 18 ]
+            [ el [ fontSize 12, semibold, fontColor muted ] (text "LISTS")
+            , el [ fontSize 34, serif, fontColor ink ] (text "Your lists")
+            , tile (nav (BrowseOpenList "Personal")) "Personal" "person.fill" listPersonal (countList "Personal" model.items)
+            , tile (nav (BrowseOpenList "Work")) "Work" "briefcase.fill" listWork (countList "Work" model.items)
+            , tile (nav (BrowseOpenList "Home")) "Home" "house.fill" listHome (countList "Home" model.items)
+            , tile (nav (BrowseOpenList "Health")) "Health" "heart.fill" listHealth (countList "Health" model.items)
+            , tile (nav (BrowseOpenList "Errands")) "Errands" "cart.fill" listErrands (countList "Errands" model.items)
+            , el [ fontSize 12, semibold, fontColor muted, paddingXY 0 6 ] (text "AREAS")
+            , tile (nav (BrowseOpenArea Inbox)) "Inbox" "tray.full.fill" accentSoft (countArea Inbox model.items)
+            , tile (nav (BrowseOpenArea Someday)) "Someday" "archivebox.fill" chip (countArea Someday model.items)
+            , el [ height (px 100) ] (text "")
+            ]
+        ]
+
+
+areaView : Model -> Area -> View Msg
+areaView model area =
+    browsePage (areaTitle area) (List.filter (\item -> itemInArea area item) model.items)
+
+
+listView : Model -> String -> View Msg
+listView model name =
+    browsePage name (List.filter (\item -> itemInList name item) model.items)
+
+
+browsePage : String -> List Item -> View Msg
+browsePage title items =
+    column [ width fill, height fill, bg canvas ]
+        [ listHeader title "folder.fill" accent (Just (nav BrowseBack))
+        , scroll [ spacing 8, width fill, height fill, paddingXY 22 8 ]
+            [ tasksBlock items
+            , el [ height (px 100) ] (text "")
+            ]
+        ]
+
+
+tile : Msg -> String -> String -> Color -> Int -> View Msg
+tile msg title symbol tintColor count =
+    el
+        [ onTap msg
+        , padding 16
+        , width fill
+        , bg surface
+        , rounded 18
+        ]
+        (row [ width fill, spacing 12, centerY ]
+            [ iconWell tintColor ink symbol
+            , el [ fontSize 17, fontColor ink, width fill ] (text title)
+            , el [ fontSize 15, fontColor muted ] (text (String.fromInt count))
+            ]
+        )
+
+
+areaTitle : Area -> String
+areaTitle area =
+    case area of
+        Inbox ->
+            "Inbox"
+
+        Today ->
+            "Today"
+
+        Upcoming ->
+            "Upcoming"
+
+        Anytime ->
+            "Anytime"
+
+        Someday ->
+            "Someday"

@@ -1,0 +1,111 @@
+module Update.Account exposing (update)
+
+import Cmd exposing (Cmd)
+import Model.Types exposing (..)
+import Model.Care as Care
+import Update.Msg exposing (..)
+import Update.Persist exposing (persist)
+
+
+update : AccountMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        ToggleCommitment id ->
+            let
+                before =
+                    allDailyKept model
+
+                mid =
+                    { model | commitments = List.map (toggleKept id) model.commitments }
+
+                after =
+                    allDailyKept mid
+
+                next =
+                    if after && not before then
+                        { mid
+                            | weekDays = promoteToday mid.weekDays
+                            , streakDays = mid.streakDays + 1
+                        }
+
+                    else if before && not after then
+                        { mid | weekDays = demoteToday mid.weekDays }
+
+                    else
+                        mid
+            in
+            ( next, persist next )
+
+        OpenCheckIn ->
+            ( { model | checkInOpen = True }, Cmd.none )
+
+        CloseCheckIn ->
+            ( { model | checkInOpen = False }, Cmd.none )
+
+        ConfirmCheckIn ->
+            let
+                next =
+                    { model
+                        | checkInOpen = False
+                        , commitments = List.map markKept model.commitments
+                        , weekDays = promoteToday model.weekDays
+                        , streakDays = model.streakDays + 1
+                    }
+            in
+            ( next, persist next )
+
+        RefreshWeek ->
+            ( { model | statusLine = "Week up to date" }, Cmd.none )
+
+
+allDailyKept : Model -> Bool
+allDailyKept model =
+    let
+        goals =
+            Care.visibleDailyGoals model
+    in
+    if List.length goals == 0 then
+        False
+
+    else
+        List.length (List.filter (\c -> c.kept) goals) == List.length goals
+
+
+promoteToday : List DayMark -> List DayMark
+promoteToday days =
+    List.indexedMap
+        (\i d ->
+            if i == 2 then
+                { label = d.label, mark = "kept" }
+
+            else
+                d
+        )
+        days
+
+
+demoteToday : List DayMark -> List DayMark
+demoteToday days =
+    List.indexedMap
+        (\i d ->
+            if i == 2 then
+                { label = d.label, mark = "today" }
+
+            else
+                d
+        )
+        days
+
+
+toggleKept : String -> Commitment -> Commitment
+toggleKept id c =
+    if c.id == id then
+        { c | kept = not c.kept }
+
+    else
+        c
+
+
+markKept : Commitment -> Commitment
+markKept c =
+    { c | kept = True }

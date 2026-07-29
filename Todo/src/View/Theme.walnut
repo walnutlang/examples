@@ -1,0 +1,119 @@
+module View.Theme exposing (..)
+
+import Ui exposing (..)
+
+
+-- Dovetail: warm cream canvas, terracotta accent, sage completion.
+-- Light-only palette (iOS shell locks UIUserInterfaceStyle to Light).
+
+canvas : Color
+canvas =
+    rgb255 245 242 234
+
+
+surface : Color
+surface =
+    rgb255 252 250 245
+
+
+ink : Color
+ink =
+    rgb255 44 36 30
+
+
+inkSoft : Color
+inkSoft =
+    rgb255 110 98 88
+
+
+muted : Color
+muted =
+    rgb255 168 158 146
+
+
+hairline : Color
+hairline =
+    rgb255 228 221 210
+
+
+chip : Color
+chip =
+    rgb255 236 230 218
+
+
+accent : Color
+accent =
+    rgb255 193 82 38
+
+
+accentDeep : Color
+accentDeep =
+    rgb255 164 64 28
+
+
+accentSoft : Color
+accentSoft =
+    rgb255 245 224 212
+
+
+success : Color
+success =
+    rgb255 110 148 112
+
+
+successSoft : Color
+successSoft =
+    rgb255 220 232 218
+
+
+navIdle : Color
+navIdle =
+    rgb255 148 138 126
+
+
+listPersonal : Color
+listPersonal =
+    rgb255 232 220 200
+
+
+listWork : Color
+listWork =
+    rgb255 210 224 236
+
+
+listHome : Color
+listHome =
+    rgb255 214 228 210
+
+
+listHealth : Color
+listHealth =
+    rgb255 214 228 210
+
+
+listErrands : Color
+listErrands =
+    rgb255 242 220 208
+
+
+listTagFg : Color
+listTagFg =
+    rgb255 88 72 58
+
+
+listChipBg : String -> Color
+listChipBg name =
+    if name == "Work" then
+        listWork
+
+    else if name == "Home" then
+        listHome
+
+    else if name == "Health" then
+        listHealth
+
+    else if name == "Errands" then
+        listErrands
+
+    else
+        listPersonal

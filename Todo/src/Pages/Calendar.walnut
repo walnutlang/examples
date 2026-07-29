@@ -1,0 +1,26 @@
+module Pages.Calendar exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Query exposing (upcomingItems)
+import Update.Msg exposing (..)
+import View.Task exposing (tasksBlock)
+import View.Theme exposing (..)
+
+
+view : Model -> View Msg
+view model =
+    let
+        items =
+            upcomingItems model.items
+    in
+    column [ width fill, height fill, bg canvas ]
+        [ scroll [ spacing 18, width fill, height fill, paddingXY 22 18 ]
+            [ el [ fontSize 12, semibold, fontColor muted ] (text "CALENDAR")
+            , el [ fontSize 34, serif, fontColor ink ] (text "Upcoming")
+            , el [ fontSize 15, fontColor inkSoft ]
+                (text "Dates and reminders land here.")
+            , tasksBlock items
+            , el [ height (px 100) ] (text "")
+            ]
+        ]

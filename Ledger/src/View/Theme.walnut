@@ -1,0 +1,63 @@
+module View.Theme exposing (..)
+
+import Ui exposing (..)
+
+
+canvas : Color
+canvas =
+    rgb255 244 246 242
+
+
+surface : Color
+surface =
+    rgb255 255 255 255
+
+
+ink : Color
+ink =
+    rgb255 28 36 32
+
+
+inkSoft : Color
+inkSoft =
+    rgb255 90 102 94
+
+
+muted : Color
+muted =
+    rgb255 140 152 144
+
+
+accent : Color
+accent =
+    rgb255 46 125 98
+
+
+accentSoft : Color
+accentSoft =
+    rgb255 220 236 228
+
+
+expense : Color
+expense =
+    rgb255 176 72 64
+
+
+income : Color
+income =
+    rgb255 46 125 98
+
+
+hairline : Color
+hairline =
+    rgb255 220 226 220
+
+
+chip : Color
+chip =
+    rgb255 232 238 232
+
+
+white : Color
+white =
+    rgb255 255 255 255

@@ -1,0 +1,27 @@
+module Smoke exposing (main)
+
+import Main exposing (Model, Msg(..), init, update)
+import Test exposing (..)
+
+
+main =
+    format
+        (run
+            (describe "Surfaces"
+                [ test "init selected"
+                    (equal init.selected "none")
+                , test "Pick alpha"
+                    (equal (update (Pick "alpha") init).selected "alpha")
+                , test "Pick ferry"
+                    (equal (update (Pick "ferry") init).selected "ferry")
+                , test "OpenSheet"
+                    (equal (update OpenSheet init).sheetOpen True)
+                , test "CloseSheet"
+                    (equal (update CloseSheet (update OpenSheet init)).sheetOpen False)
+                , test "OpenDetail"
+                    (equal (update (OpenDetail "pushed") init).detail (Just "pushed"))
+                , test "CloseDetail"
+                    (equal (update CloseDetail (update (OpenDetail "pushed") init)).detail Nothing)
+                ]
+            )
+        )

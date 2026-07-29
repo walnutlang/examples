@@ -1,0 +1,14 @@
+schema_version = 2
+
+[packages.Greeter]
+name = "Greeter"
+version = "0.1.0"
+resolved_path = "vendor/walnut/Greeter"
+hash = "15869b0a99f198f521d574d53c2be0098fa355ca66763bbb9e4831a520a3562b"
+source = { name = "Greeter", registry = "https://packages.walnutlang.com", version = "0.1.0" }
+
+[packages.Shout]
+name = "Shout"
+version = "0.1.0"
+resolved_path = "vendor/walnut/Shout"
+source = { path = "packages/Shout" }

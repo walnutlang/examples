@@ -1,0 +1,103 @@
+module Update.Entry exposing (update)
+
+import Cmd exposing (Cmd)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import Update.Persist exposing (andPersist, deleteEntry, persist)
+
+
+update : EntryEditMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        DraftPayee text ->
+            ( { model | draftPayee = text }
+            , Cmd.none
+            )
+
+        DraftCategory text ->
+            ( { model | draftCategory = text }
+            , Cmd.none
+            )
+
+        DraftAmount text ->
+            ( { model | draftAmount = text }
+            , Cmd.none
+            )
+
+        DraftNote text ->
+            ( { model | draftNote = text }
+            , Cmd.none
+            )
+
+        SaveEntry ->
+            case commitDraft model of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just next ->
+                    andPersist next
+
+        DeleteSelected ->
+            case model.selectedId of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just id ->
+                    let
+                        next =
+                            { model
+                                | entries = List.filter (\e -> e.id /= id) model.entries
+                                , selectedId = Nothing
+                            }
+                    in
+                    ( next
+                    , Cmd.batch [ deleteEntry id, persist next ]
+                    )
+
+
+-- Payee required. Blank amount → $0 expense; non-numeric amount refuses save.
+commitDraft : Model -> Maybe Model
+commitDraft model =
+    let
+        payee =
+            String.trim model.draftPayee
+
+        amountText =
+            String.trim model.draftAmount
+    in
+    if String.isEmpty payee then
+        Nothing
+
+    else
+        case parseDollars amountText of
+            Nothing ->
+                Nothing
+
+            Just dollars ->
+                Just
+                    { model
+                        | entries =
+                            { id = model.nextId
+                            , date = "2026-07-18"
+                            , payee = payee
+                            , category = String.trim model.draftCategory
+                            , amountDollars = dollars
+                            , flow = Out
+                            , note = String.trim model.draftNote
+                            }
+                                :: model.entries
+                        , nextId = model.nextId + 1
+                        , composing = False
+                        , draftPayee = ""
+                        , draftAmount = ""
+                        , draftNote = ""
+                    }
+
+
+parseDollars : String -> Maybe Int
+parseDollars text =
+    if String.isEmpty text then
+        Just 0
+
+    else
+        String.toInt text

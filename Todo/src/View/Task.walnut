@@ -1,0 +1,94 @@
+module View.Task exposing (..)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import View.Layout exposing (trailingFlag)
+import View.Theme exposing (..)
+
+
+tasksBlock : List Item -> View Msg
+tasksBlock items =
+    column [ spacing 4, width fill ] (List.map viewTask items)
+
+
+viewTask : Item -> View Msg
+viewTask item =
+    row
+        [ key (String.fromInt item.id)
+        , spacing 14
+        , width fill
+        , paddingXY 0 14
+        , centerY
+        ]
+        [ el
+            [ onTap (tasks (Toggle item.id))
+            , width (px 28)
+            , height (px 28)
+            , centerX
+            ]
+            (icon [ tint (checkColor item.done), fontSize 26 ] (checkIcon item.done))
+        , column [ spacing 6, width fill, onTap (nav (OpenTask item.id)) ]
+            [ el [ fontSize 17, fontColor (taskTitleColor item.done) ]
+                (text item.title)
+            , metaRow item
+            ]
+        , trailingFlag item.priority
+        ]
+
+
+metaRow : Item -> View Msg
+metaRow item =
+    row [ spacing 8, width fill, centerY ]
+        [ timeLabel item.timeLabel
+        , listChip item.listName
+        ]
+
+
+timeLabel : String -> View Msg
+timeLabel label =
+    if String.isEmpty label then
+        none
+
+    else
+        el [ fontSize 13, fontColor muted ] (text label)
+
+
+listChip : String -> View Msg
+listChip name =
+    el
+        [ fontSize 12
+        , semibold
+        , fontColor listTagFg
+        , bg (listChipBg name)
+        , rounded 10
+        , paddingXY 10 4
+        ]
+        (text name)
+
+
+checkIcon : Bool -> String
+checkIcon done =
+    if done then
+        "checkmark.circle.fill"
+
+    else
+        "circle"
+
+
+checkColor : Bool -> Color
+checkColor done =
+    if done then
+        success
+
+    else
+        accent
+
+
+taskTitleColor : Bool -> Color
+taskTitleColor done =
+    if done then
+        muted
+
+    else
+        ink

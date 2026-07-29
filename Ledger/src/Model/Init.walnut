@@ -1,0 +1,79 @@
+module Model.Init exposing (init, seed, empty)
+
+import Cmd exposing (Cmd)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import Update.Persist exposing (loadCmds)
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( empty
+    , loadCmds
+    )
+
+
+empty : Model
+empty =
+    { tab = BooksTab
+    , entries = []
+    , selectedId = Nothing
+    , composing = False
+    , draftPayee = ""
+    , draftCategory = "Sales"
+    , draftAmount = ""
+    , draftNote = ""
+    , nextId = 1
+    , businessName = "Harbor Roast"
+    }
+
+
+seed : Model
+seed =
+    { tab = BooksTab
+    , entries =
+        [ mk 1 "2026-07-18" "Card batch Thu" "Sales" 429 In ""
+        , mk 2 "2026-07-17" "Bean supply Co" "Supplies" 186 Out "Two 5lb bags"
+        , mk 3 "2026-07-16" "Card batch Tue" "Sales" 391 In ""
+        , mk 4 "2026-07-15" "City water" "Utilities" 42 Out ""
+        , mk 5 "2026-07-14" "Weekend tips jar" "Sales" 64 In ""
+        , mk 6 "2026-07-12" "Milk and dairy" "Supplies" 98 Out ""
+        , mk 7 "2026-07-11" "Card batch Fri" "Sales" 512 In ""
+        , mk 8 "2026-07-08" "Square fees" "Fees" 22 Out ""
+        , mk 9 "2026-07-03" "July rent" "Rent" 2800 Out "Storefront"
+        , mk 10 "2026-07-01" "Opening float" "Transfer" 500 In ""
+        , mk 11 "2026-06-28" "Card batch Sat" "Sales" 601 In ""
+        , mk 12 "2026-06-25" "Pastry wholesale" "Supplies" 124 Out ""
+        , mk 13 "2026-06-22" "Instagram ads" "Marketing" 75 Out ""
+        , mk 14 "2026-06-20" "Card batch Fri" "Sales" 449 In ""
+        , mk 15 "2026-06-15" "Electric" "Utilities" 91 Out ""
+        , mk 16 "2026-06-10" "Espresso gasket kit" "Supplies" 32 Out ""
+        , mk 17 "2026-06-05" "Catering Studio M" "Sales" 1850 In "Offsite"
+        , mk 18 "2026-06-01" "June rent" "Rent" 2800 Out ""
+        , mk 19 "2026-05-28" "Card batch Wed" "Sales" 372 In ""
+        , mk 20 "2026-05-20" "Napkins and cups" "Supplies" 67 Out ""
+        , mk 21 "2026-05-12" "Payroll week 19" "Payroll" 1420 Out ""
+        , mk 22 "2026-05-05" "Farmers market booth" "Sales" 920 In ""
+        , mk 23 "2026-05-01" "May rent" "Rent" 2800 Out ""
+        ]
+    , selectedId = Nothing
+    , composing = False
+    , draftPayee = ""
+    , draftCategory = "Sales"
+    , draftAmount = ""
+    , draftNote = ""
+    , nextId = 24
+    , businessName = "Harbor Roast"
+    }
+
+
+mk : Int -> String -> String -> String -> Int -> Flow -> String -> Entry
+mk id date payee category amountDollars flow note =
+    { id = id
+    , date = date
+    , payee = payee
+    , category = category
+    , amountDollars = amountDollars
+    , flow = flow
+    , note = note
+    }

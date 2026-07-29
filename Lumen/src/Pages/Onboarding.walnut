@@ -1,0 +1,193 @@
+module Pages.Onboarding exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+import View.Chrome exposing (..)
+
+
+view : Model -> View Msg
+view model =
+    column
+        [ width fill
+        , height fill
+        , bg canvas
+        ]
+        [ scroll
+            [ spacing 18
+            , width fill
+            , height fill
+            , paddingXY 28 36
+            , scrollBottomInset 40
+            ]
+            [ el [ fontSize 13, semibold, fontColor gold ] (text "LUMEN")
+            , el [ fontSize 40, serif, fontColor ink ] (text "Steady light")
+            , el [ fontSize 17, fontColor inkSoft ]
+                (text "Five pillars for metabolic health—feedback, learning, community, accountability, agency.")
+            , progressDots model.onboardingStep
+            , stepBody model
+            , row [ spacing 12, width fill ]
+                [ backBtn model
+                , nextBtn model
+                ]
+            , el [ fontSize 12, fontColor muted ]
+                (text "Educational demo—not medical advice. Talk with your clinician about care decisions.")
+            ]
+        ]
+
+
+progressDots : Int -> View Msg
+progressDots step =
+    row [ spacing 8 ]
+        [ dot (step == 0)
+        , dot (step == 1)
+        , dot (step == 2)
+        ]
+
+
+dot : Bool -> View Msg
+dot on =
+    el
+        [ width (px 8)
+        , height (px 8)
+        , rounded 4
+        , bg
+            (if on then
+                teal
+
+             else
+                hairline
+            )
+        ]
+        (text "")
+
+
+stepBody : Model -> View Msg
+stepBody model =
+    if model.onboardingStep == 0 then
+        card []
+            [ el [ fontSize 22, serif, fontColor ink ] (text "What are we caring for?")
+            , el [ fontSize 14, fontColor inkSoft ] (text "Pick every condition that fits—you can change later in Plan.")
+            , toggleRow "Prediabetes" model.profile.prediabetes (agency TogglePrediabetes)
+            , toggleRow "Type 2 diabetes" model.profile.type2 (agency ToggleType2)
+            , toggleRow "Cholesterol" model.profile.lipids (agency ToggleLipids)
+            , toggleRow "Hypertension" model.profile.hypertension (agency ToggleHypertension)
+            , toggleRow "On a GLP-1" model.profile.glp1 (agency ToggleGlp1)
+            ]
+
+    else if model.onboardingStep == 1 then
+        card []
+            [ el [ fontSize 22, serif, fontColor ink ] (text "Connect signals")
+            , el [ fontSize 15, fontColor inkSoft ]
+                (text "HealthKit powers Feedback. Fitbit can sync too—or use demo data while you explore.")
+            , button
+                [ onTap (agency RequestHealthKit)
+                , bg teal
+                , rounded 14
+                , padding 14
+                , width fill
+                ]
+                [ el [ fontSize 15, semibold, fontColor white, textCenter, width fill ] (text "Allow HealthKit") ]
+            , button
+                [ onTap (agency ToggleFitbitDemo)
+                , padding 14
+                , rounded 14
+                , bg chip
+                , width fill
+                ]
+                [ el [ fontSize 15, semibold, fontColor teal ]
+                    (text
+                        (if model.fitbitDemo then
+                            "Fitbit demo · ON"
+
+                         else
+                            "Fitbit demo · OFF"
+                        )
+                    )
+                ]
+            ]
+
+    else
+        card [ bg tealSoft, border 0 tealSoft ]
+            [ el [ fontSize 22, serif, fontColor ink ] (text "You are in charge")
+            , el [ fontSize 15, fontColor inkSoft ]
+                (text "Agency means you pause nudges, change goals, and own your data. Finish to open the five pillars.")
+            ]
+
+
+toggleRow : String -> Bool -> Msg -> View Msg
+toggleRow label on msg =
+    button
+        [ onTap msg
+        , width fill
+        , padding 14
+        , rounded 12
+        , bg
+            (if on then
+                tealSoft
+
+             else
+                chip
+            )
+        ]
+        [ row [ width fill, centerY ]
+            [ el [ fontSize 16, fontColor ink ] (text label)
+            , spacer
+            , el
+                [ fontSize 13
+                , semibold
+                , fontColor
+                    (if on then
+                        teal
+
+                     else
+                        muted
+                    )
+                ]
+                (text
+                    (if on then
+                        "ON"
+
+                     else
+                        "OFF"
+                    )
+                )
+            ]
+        ]
+
+
+backBtn : Model -> View Msg
+backBtn model =
+    if model.onboardingStep == 0 then
+        el [] (text "")
+
+    else
+        button
+            [ onTap (agency OnboardingBack)
+            , padding 14
+            , rounded 14
+            , bg chip
+            ]
+            [ text "Back" ]
+
+
+nextBtn : Model -> View Msg
+nextBtn model =
+    if model.onboardingStep >= 2 then
+        button
+            [ onTap (agency FinishOnboarding)
+            , bg teal
+                , rounded 14
+            , padding 14
+            ]
+            [ el [ fontSize 16, semibold, fontColor white, textCenter, width fill ] (text "Enter Lumen") ]
+
+    else
+        button
+            [ onTap (agency OnboardingNext)
+            , bg teal
+                , rounded 14
+            , padding 14
+            ]
+            [ el [ fontSize 16, semibold, fontColor white, textCenter, width fill ] (text "Continue") ]

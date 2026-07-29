@@ -1,0 +1,5 @@
+name = "Shout"
+version = "0.1.0"
+modules = "src"
+
+[dependencies]

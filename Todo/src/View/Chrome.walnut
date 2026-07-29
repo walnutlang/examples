@@ -1,0 +1,643 @@
+module View.Chrome exposing (..)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import View.Layout exposing (iconWell)
+import View.Theme exposing (..)
+
+
+listHeader : String -> String -> Color -> Maybe Msg -> View Msg
+listHeader title symbol tintColor maybeBack =
+    row
+        [ spacing 12
+        , width fill
+        , paddingXY 16 18
+        , bg canvas
+        , centerY
+        ]
+        [ backControl maybeBack
+        , iconWell surface tintColor symbol
+        , el [ fontSize 22, serif, fontColor ink, width fill ] (text title)
+        ]
+
+
+backControl : Maybe Msg -> View Msg
+backControl maybeBack =
+    case maybeBack of
+        Nothing ->
+            none
+
+        Just msg ->
+            el
+                [ onTap msg
+                , width (px 32)
+                , height (px 32)
+                , rounded 14
+                , bg surface
+                , centerX
+                ]
+                (icon [ tint accent, fontSize 14 ] "chevron.left")
+
+
+fabBar : View Msg
+fabBar =
+    row
+        [ floatBottom
+        , key "fab"
+        , width fill
+        , paddingXY 22 0
+        ]
+        [ spacer
+        , column [ spacing 0 ]
+            [ button
+                [ onTap (compose StartCompose)
+                , bg accent
+                , rounded 28
+                , padding 16
+                , fontColor white
+                ]
+                [ icon [ tint white, fontSize 22 ] "plus" ]
+            , el [ height (px 78) ] (text "")
+            ]
+        ]
+
+
+composeSheet : Model -> View Msg
+composeSheet model =
+    if model.composing then
+        sheet
+            [ key "compose"
+            , propString "detent" "mediumLarge"
+            ]
+            (compose CancelCompose)
+            (scroll
+                [ key "compose-card"
+                , spacing 16
+                , paddingXY 20 16
+                , bg surface
+                , width fill
+                ]
+                [ row [ width fill, centerY ]
+                    [ button
+                        [ onTap (compose CancelCompose)
+                        , padding 6
+                        , fontSize 16
+                        , fontColor accent
+                        ]
+                        [ el [ fontColor accent ] (text "Cancel") ]
+                    , spacer
+                    , button
+                        [ onTap (tasks Add)
+                        , padding 6
+                        , fontSize 16
+                        , semibold
+                        , fontColor accent
+                        ]
+                        [ el [ fontColor accent, semibold ] (text "Add") ]
+                    ]
+                , textField
+                    [ key "draft"
+                    , content model.draft
+                    , placeholder "Task title"
+                    , onInput onDraft
+                    , onSubmit (tasks Add)
+                    , fontSize 30
+                    , serif
+                    , fontColor ink
+                    , bg (rgba 0.0 0.0 0.0 0.0)
+                    , width fill
+                    ]
+                , textField
+                    [ key "draft-note"
+                    , content model.draftNote
+                    , placeholder "Add a note..."
+                    , onInput onDraftNote
+                    , fontSize 16
+                    , fontColor inkSoft
+                    , bg (rgba 0.0 0.0 0.0 0.0)
+                    , width fill
+                    ]
+                , row [ spacing 6, width fill ]
+                    [ dateChip model
+                    , timeChip model
+                    , priorityChip model.draftPriority
+                    , listChip model
+                    ]
+                , row [ width fill, centerY, paddingXY 0 4 ]
+                    [ el
+                        [ onTap (compose ToggleDatePicker)
+                        , width (px 36)
+                        , height (px 36)
+                        , rounded 18
+                        , centerX
+                        ]
+                        (icon [ tint muted, fontSize 18 ] "calendar")
+                    , el
+                        [ onTap (compose ToggleDraftPriority)
+                        , width (px 36)
+                        , height (px 36)
+                        , rounded 18
+                        , centerX
+                        ]
+                        (icon [ tint (priorityTint model.draftPriority), fontSize 18 ] "flag")
+                    , el
+                        [ width (px 36)
+                        , height (px 36)
+                        , rounded 18
+                        , centerX
+                        ]
+                        (icon [ tint muted, fontSize 18 ] "bell")
+                    , el
+                        [ onTap (compose ToggleListPicker)
+                        , width (px 36)
+                        , height (px 36)
+                        , rounded 18
+                        , centerX
+                        ]
+                        (icon [ tint muted, fontSize 18 ] "tag")
+                    , spacer
+                    , button
+                        [ onTap (tasks Add)
+                        , bg accent
+                        , rounded 24
+                        , padding 12
+                        ]
+                        [ icon [ tint white, fontSize 18 ] "arrow.up" ]
+                    ]
+                , el [ height (px 12) ] (text "")
+                ]
+            )
+
+    else
+        none
+
+
+composePickerSheet : Model -> View Msg
+composePickerSheet model =
+    case model.composePicker of
+        Nothing ->
+            none
+
+        Just picker ->
+            sheet
+                [ key "compose-picker"
+                , propString "detent" "medium"
+                ]
+                (compose CloseComposePicker)
+                (pickerSheetBody picker model)
+
+
+chipSolid : String -> String -> View Msg
+chipSolid symbol label =
+    button
+        [ paddingXY 10 7
+        , bg accent
+        , rounded 14
+        , fontColor white
+        , width fill
+        ]
+        [ row [ spacing 4, centerX ]
+            [ icon [ tint white, fontSize 11 ] symbol
+            , el [ fontSize 12, semibold, fontColor white ] (text label)
+            ]
+        ]
+
+
+dateChip : Model -> View Msg
+dateChip model =
+    button
+        [ onTap (compose ToggleDatePicker)
+        , paddingXY 10 7
+        , bg (dateChipBg model)
+        , rounded 14
+        , width fill
+        ]
+        [ row [ spacing 4, centerX ]
+            [ icon [ tint (dateChipTint model), fontSize 11 ] "calendar"
+            , el [ fontSize 12, fontColor (dateChipTint model) ] (text model.draftDate)
+            ]
+        ]
+
+
+timeChip : Model -> View Msg
+timeChip model =
+    button
+        [ onTap (compose ToggleTimePicker)
+        , paddingXY 10 7
+        , bg (pickerChipBg TimePicker model.composePicker)
+        , rounded 14
+        , width fill
+        ]
+        [ row [ spacing 4, centerX ]
+            [ icon [ tint inkSoft, fontSize 11 ] "clock"
+            , el [ fontSize 12, fontColor ink ] (text model.draftTime)
+            ]
+        ]
+
+
+priorityChip : Priority -> View Msg
+priorityChip p =
+    button
+        [ onTap (compose ToggleDraftPriority)
+        , paddingXY 10 7
+        , bg (priorityChipBg p)
+        , rounded 14
+        , width fill
+        ]
+        [ row [ spacing 4, centerX ]
+            [ icon [ tint (priorityTint p), fontSize 11 ] "flag"
+            , el [ fontSize 12, fontColor ink ] (text "Priority")
+            ]
+        ]
+
+
+listChip : Model -> View Msg
+listChip model =
+    button
+        [ onTap (compose ToggleListPicker)
+        , paddingXY 10 7
+        , bg (pickerChipBg ListPicker model.composePicker)
+        , rounded 14
+        , width fill
+        ]
+        [ row [ spacing 4, centerX ]
+            [ icon [ tint inkSoft, fontSize 11 ] "folder"
+            , el [ fontSize 12, fontColor ink ] (text model.draftList)
+            ]
+        ]
+
+
+pickerSheetBody : ComposePicker -> Model -> View Msg
+pickerSheetBody picker model =
+    column
+        [ key "picker-sheet"
+        , width fill
+        , height fill
+        , spacing 16
+        , paddingXY 20 16
+        , bg surface
+        ]
+        [ pickerSheetHeader picker
+        , scroll
+            [ width fill
+            , height fill
+            , spacing 8
+            ]
+            (pickerOptions picker model)
+        ]
+
+
+pickerSheetHeader : ComposePicker -> View Msg
+pickerSheetHeader picker =
+    row
+        [ width fill
+        , spacing 12
+        ]
+        [ column [ spacing 4, width fill ]
+            [ el [ fontSize 20, serif, fontColor ink ] (text (pickerTitle picker))
+            , el [ fontSize 13, fontColor muted ] (text (pickerSubtitle picker))
+            ]
+        , el
+            [ onTap (compose CloseComposePicker)
+            , width (px 32)
+            , height (px 32)
+            , rounded 16
+            , bg chip
+            , centerX
+            ]
+            (icon [ tint muted, fontSize 12 ] "xmark")
+        ]
+
+
+pickerTitle : ComposePicker -> String
+pickerTitle picker =
+    case picker of
+        DatePicker ->
+            "Choose a day"
+
+        ListPicker ->
+            "Choose a list"
+
+        TimePicker ->
+            "Choose a time"
+
+
+pickerSubtitle : ComposePicker -> String
+pickerSubtitle picker =
+    case picker of
+        DatePicker ->
+            "When should this show up?"
+
+        ListPicker ->
+            "Where should this task live?"
+
+        TimePicker ->
+            "Pick when you want to do it."
+
+
+pickerOptions : ComposePicker -> Model -> List (View Msg)
+pickerOptions picker model =
+    case picker of
+        DatePicker ->
+            List.map (\label -> dateOption model.draftDate label) knownDates
+
+        ListPicker ->
+            List.map (\name -> listOption model.draftList name) knownLists
+
+        TimePicker ->
+            List.map (\label -> timeOption model.draftTime label) knownTimes
+
+
+optionIconWell : Color -> Color -> String -> View Msg
+optionIconWell wellBg iconTint symbol =
+    iconWell wellBg iconTint symbol
+
+
+dateOption : String -> String -> View Msg
+dateOption selected label =
+    el
+        [ onTap (compose (SetDraftDate label))
+        , width fill
+        , paddingXY 14 14
+        , bg (optionBg selected label)
+        , rounded 18
+        ]
+        (row [ width fill, spacing 12, centerY ]
+            [ optionIconWell chip inkSoft (dateIcon label)
+            , column [ spacing 3, width fill ]
+                [ el [ fontSize 17, fontColor ink ] (text label)
+                , el [ fontSize 12, fontColor muted ] (text (dateHint label))
+                ]
+            , selectedMark selected label
+            ]
+        )
+
+
+listOption : String -> String -> View Msg
+listOption selected name =
+    el
+        [ onTap (compose (SetDraftList name))
+        , width fill
+        , paddingXY 14 14
+        , bg (optionBg selected name)
+        , rounded 18
+        ]
+        (row [ width fill, spacing 12, centerY ]
+            [ optionIconWell (listChipBg name) listTagFg "folder"
+            , el [ fontSize 17, fontColor ink, width fill ] (text name)
+            , selectedMark selected name
+            ]
+        )
+
+
+timeOption : String -> String -> View Msg
+timeOption selected label =
+    el
+        [ onTap (compose (SetDraftTime label))
+        , width fill
+        , paddingXY 14 14
+        , bg (optionBg selected label)
+        , rounded 18
+        ]
+        (row [ width fill, spacing 12, centerY ]
+            [ optionIconWell chip inkSoft "clock"
+            , el [ fontSize 17, fontColor ink, width fill ] (text label)
+            , selectedMark selected label
+            ]
+        )
+
+
+selectedMark : String -> String -> View Msg
+selectedMark selected value =
+    el
+        [ width (px 28)
+        , height (px 28)
+        , rounded 14
+        , bg (selectedMarkBg selected value)
+        , centerX
+        ]
+        (selectedMarkIcon selected value)
+
+
+selectedMarkBg : String -> String -> Color
+selectedMarkBg selected value =
+    if selected == value then
+        accentSoft
+
+    else
+        rgba 0.0 0.0 0.0 0.0
+
+
+selectedMarkIcon : String -> String -> View Msg
+selectedMarkIcon selected value =
+    if selected == value then
+        icon [ tint accent, fontSize 13 ] "checkmark"
+
+    else
+        text ""
+
+
+optionBg : String -> String -> Color
+optionBg selected value =
+    if selected == value then
+        accentSoft
+
+    else
+        chip
+
+
+pickerChipBg : ComposePicker -> Maybe ComposePicker -> Color
+pickerChipBg target open =
+    case open of
+        Nothing ->
+            chip
+
+        Just picker ->
+            if samePickerChip target picker then
+                accentSoft
+
+            else
+                chip
+
+
+samePickerChip : ComposePicker -> ComposePicker -> Bool
+samePickerChip a b =
+    case a of
+        DatePicker ->
+            case b of
+                DatePicker ->
+                    True
+
+                ListPicker ->
+                    False
+
+                TimePicker ->
+                    False
+
+        ListPicker ->
+            case b of
+                ListPicker ->
+                    True
+
+                DatePicker ->
+                    False
+
+                TimePicker ->
+                    False
+
+        TimePicker ->
+            case b of
+                TimePicker ->
+                    True
+
+                DatePicker ->
+                    False
+
+                ListPicker ->
+                    False
+
+
+dateChipBg : Model -> Color
+dateChipBg model =
+    case model.composePicker of
+        Just picker ->
+            case picker of
+                DatePicker ->
+                    accentSoft
+
+                ListPicker ->
+                    dateChipIdle model.draftDate
+
+                TimePicker ->
+                    dateChipIdle model.draftDate
+
+        Nothing ->
+            dateChipIdle model.draftDate
+
+
+dateChipIdle : String -> Color
+dateChipIdle label =
+    if label == "Today" then
+        accent
+
+    else
+        chip
+
+
+dateChipTint : Model -> Color
+dateChipTint model =
+    case model.composePicker of
+        Just picker ->
+            case picker of
+                DatePicker ->
+                    ink
+
+                ListPicker ->
+                    dateChipIdleTint model.draftDate
+
+                TimePicker ->
+                    dateChipIdleTint model.draftDate
+
+        Nothing ->
+            dateChipIdleTint model.draftDate
+
+
+dateChipIdleTint : String -> Color
+dateChipIdleTint label =
+    if label == "Today" then
+        white
+
+    else
+        ink
+
+
+priorityChipBg : Priority -> Color
+priorityChipBg p =
+    case p of
+        PriorityHigh ->
+            accentSoft
+
+        PriorityNone ->
+            chip
+
+
+priorityTint : Priority -> Color
+priorityTint p =
+    case p of
+        PriorityHigh ->
+            accent
+
+        PriorityNone ->
+            muted
+
+
+knownLists : List String
+knownLists =
+    [ "Personal", "Work", "Home", "Health", "Errands" ]
+
+
+knownTimes : List String
+knownTimes =
+    [ "Anytime", "9:00 AM", "11:00 AM", "2:00 PM", "5:00 PM", "7:00 PM" ]
+
+
+knownDates : List String
+knownDates =
+    [ "Today", "Tomorrow", "Upcoming", "Anytime", "Someday", "Inbox" ]
+
+
+dateIcon : String -> String
+dateIcon label =
+    if label == "Today" then
+        "sun.max"
+
+    else if label == "Tomorrow" then
+        "sunrise"
+
+    else if label == "Upcoming" then
+        "calendar"
+
+    else if label == "Anytime" then
+        "tray"
+
+    else if label == "Someday" then
+        "moon.stars"
+
+    else
+        "tray.full"
+
+
+dateHint : String -> String
+dateHint label =
+    if label == "Today" then
+        "Shows on your Today list"
+
+    else if label == "Tomorrow" then
+        "Parks it in Upcoming"
+
+    else if label == "Upcoming" then
+        "Soon, but not today"
+
+    else if label == "Anytime" then
+        "No date pressure"
+
+    else if label == "Someday" then
+        "For later — no rush"
+
+    else
+        "Triage when you’re ready"
+
+
+deleteDialog : Model -> View Msg
+deleteDialog model =
+    case model.pendingDelete of
+        Nothing ->
+            none
+
+        Just _ ->
+            dialog []
+                "Remove this?"
+                "It disappears for good — no undo."
+                (tasks ConfirmDelete)
+                (tasks CancelDelete)

@@ -1,0 +1,262 @@
+module View.Shell exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import View.Chrome exposing (composePickerSheet, composeSheet, deleteDialog, fabBar)
+import View.Theme exposing (canvas)
+import Pages.Welcome
+import Pages.Today
+import Pages.Detail
+import Pages.Calendar
+import Pages.Lists
+import Pages.Settings
+
+
+view : Model -> View Msg
+view model =
+    if model.authed then
+        column
+            [ width fill
+            , height fill
+            , bg canvas
+            ]
+            [ pageBody model
+            , fabOrNone model
+            , composeSheet model
+            , composePickerSheet model
+            , deleteDialog model
+            ]
+
+    else
+        Pages.Welcome.view model
+
+
+{-| Textbook UIKit: `tabBar` is the root; each tab owns a `navStack`.
+Put tab title / `systemImage` on the **navStack** itself (not an wrapping `el`)
+so the host embeds the navigation controller into the tab page.
+-}
+pageBody : Model -> View Msg
+pageBody model =
+    tabBar
+        [ key "main-tabs"
+        , width fill
+        , height fill
+        , propInt "selected" (tabIndex model.tab)
+        ]
+        (\i -> nav (SelectTab (tabFromIndex i)))
+        [ todayStack model
+        , calendarStack model
+        , listsStack model
+        , settingsStack model
+        ]
+
+
+todayStack : Model -> View Msg
+todayStack model =
+    navStack
+        [ key "today-nav"
+        , content "Today"
+        , propString "systemImage" "checklist"
+        , width fill
+        , height fill
+        ]
+        (nav CloseTask)
+        (todayPages model)
+
+
+calendarStack : Model -> View Msg
+calendarStack model =
+    navStack
+        [ key "calendar-nav"
+        , content "Calendar"
+        , propString "systemImage" "calendar"
+        , width fill
+        , height fill
+        ]
+        (nav CloseTask)
+        (calendarPages model)
+
+
+listsStack : Model -> View Msg
+listsStack model =
+    navStack
+        [ key "lists-nav"
+        , content "Lists"
+        , propString "systemImage" "list.bullet"
+        , width fill
+        , height fill
+        ]
+        (nav BrowseBack)
+        (listsPages model)
+
+
+settingsStack : Model -> View Msg
+settingsStack model =
+    navStack
+        [ key "settings-nav"
+        , content "Settings"
+        , propString "systemImage" "gearshape"
+        , width fill
+        , height fill
+        ]
+        (nav CloseTask)
+        [ el [ key "settings-root", width fill, height fill ]
+            (Pages.Settings.view model)
+        ]
+
+
+todayPages : Model -> List (View Msg)
+todayPages model =
+    case model.tab of
+        TodayTab ->
+            case model.selectedId of
+                Just id ->
+                    [ el [ key "today-root", width fill, height fill ] (Pages.Today.view model)
+                    , el [ key ("detail-" ++ String.fromInt id), width fill, height fill ]
+                        (Pages.Detail.view model id)
+                    ]
+
+                Nothing ->
+                    [ el [ key "today-root", width fill, height fill ] (Pages.Today.view model) ]
+
+        _ ->
+            [ el [ key "today-root", width fill, height fill ] (Pages.Today.view model) ]
+
+
+calendarPages : Model -> List (View Msg)
+calendarPages model =
+    case model.tab of
+        CalendarTab ->
+            case model.selectedId of
+                Just id ->
+                    [ el [ key "calendar-root", width fill, height fill ] (Pages.Calendar.view model)
+                    , el [ key ("detail-" ++ String.fromInt id), width fill, height fill ]
+                        (Pages.Detail.view model id)
+                    ]
+
+                Nothing ->
+                    [ el [ key "calendar-root", width fill, height fill ] (Pages.Calendar.view model) ]
+
+        _ ->
+            [ el [ key "calendar-root", width fill, height fill ] (Pages.Calendar.view model) ]
+
+
+listsPages : Model -> List (View Msg)
+listsPages model =
+    case model.tab of
+        ListsTab ->
+            case model.selectedId of
+                Just id ->
+                    List.append (listsBrowsePages model)
+                        [ el [ key ("detail-" ++ String.fromInt id), width fill, height fill ]
+                            (Pages.Detail.view model id)
+                        ]
+
+                Nothing ->
+                    listsBrowsePages model
+
+        _ ->
+            listsBrowsePages model
+
+
+listsBrowsePages : Model -> List (View Msg)
+listsBrowsePages model =
+    case model.browse of
+        BrowseRoot ->
+            [ el [ key "lists-root", width fill, height fill ] (Pages.Lists.root model) ]
+
+        BrowseArea area ->
+            [ el [ key "lists-root", width fill, height fill ] (Pages.Lists.root model)
+            , el [ key ("lists-area-" ++ areaKey area), width fill, height fill ]
+                (Pages.Lists.areaView model area)
+            ]
+
+        BrowseList name ->
+            [ el [ key "lists-root", width fill, height fill ] (Pages.Lists.root model)
+            , el [ key ("lists-list-" ++ name), width fill, height fill ]
+                (Pages.Lists.listView model name)
+            ]
+
+
+areaKey : Area -> String
+areaKey area =
+    case area of
+        Inbox ->
+            "inbox"
+
+        Today ->
+            "today"
+
+        Upcoming ->
+            "upcoming"
+
+        Anytime ->
+            "anytime"
+
+        Someday ->
+            "someday"
+
+
+tabIndex : Tab -> Int
+tabIndex tab =
+    case tab of
+        TodayTab ->
+            0
+
+        CalendarTab ->
+            1
+
+        ListsTab ->
+            2
+
+        SettingsTab ->
+            3
+
+
+tabFromIndex : Int -> Tab
+tabFromIndex i =
+    if i == 1 then
+        CalendarTab
+
+    else if i == 2 then
+        ListsTab
+
+    else if i == 3 then
+        SettingsTab
+
+    else
+        TodayTab
+
+
+fabOrNone : Model -> View Msg
+fabOrNone model =
+    if model.composing then
+        none
+
+    else
+        case model.selectedId of
+            Just _ ->
+                none
+
+            Nothing ->
+                case model.tab of
+                    SettingsTab ->
+                        none
+
+                    TodayTab ->
+                        fabBar
+
+                    CalendarTab ->
+                        fabBar
+
+                    ListsTab ->
+                        case model.browse of
+                            BrowseRoot ->
+                                fabBar
+
+                            BrowseArea _ ->
+                                none
+
+                            BrowseList _ ->
+                                none

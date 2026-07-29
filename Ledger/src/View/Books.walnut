@@ -1,0 +1,65 @@
+module View.Books exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Query exposing (..)
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+
+
+view : Model -> View Msg
+view model =
+    column [ width fill, height fill, bg canvas ]
+        [ header model
+        , table
+            [ key "books-table"
+            , width fill
+            , height fill
+            ]
+            (List.map (\key -> monthSection key model.entries) knownMonths)
+        ]
+
+
+header : Model -> View Msg
+header model =
+    column [ spacing 6, width fill, paddingXY 22 18, bg canvas ]
+        [ el [ fontSize 12, semibold, fontColor muted ] (text "CASHBOOK")
+        , el [ fontSize 28, serif, fontColor ink ] (text model.businessName)
+        , el [ fontSize 14, fontColor inkSoft ]
+            (text (formatSigned (balanceDollars model.entries) ++ " balance"))
+        ]
+
+
+monthSection : String -> List Entry -> View Msg
+monthSection key entries =
+    section []
+        (monthTitle key)
+        (List.map entryCell (entriesInMonth key entries))
+
+
+entryCell : Entry -> View Msg
+entryCell e =
+    cell
+        [ key (String.fromInt e.id)
+        , onTap (nav (OpenEntry e.id))
+        ]
+        [ row [ width fill, spacing 12, centerY ]
+            [ column [ spacing 3, width fill ]
+                [ el [ fontSize 16, fontColor ink ] (text e.payee)
+                , el [ fontSize 12, fontColor muted ]
+                    (text (e.date ++ " · " ++ e.category))
+                ]
+            , el [ fontSize 16, fontColor (amountColor e) ]
+                (text (formatEntryAmount e))
+            ]
+        ]
+
+
+amountColor : Entry -> Color
+amountColor e =
+    case e.flow of
+        Out ->
+            expense
+
+        In ->
+            income

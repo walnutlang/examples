@@ -1,0 +1,100 @@
+module View.Theme exposing (..)
+
+import Ui exposing (..)
+
+
+-- Lumen Radiance — soft paper white, deep teal, soft gold, ink. Light-locked.
+
+canvas : Color
+canvas =
+    rgb255 236 242 240
+
+
+surface : Color
+surface =
+    rgb255 255 255 255
+
+
+mist : Color
+mist =
+    rgb255 225 235 233
+
+
+ink : Color
+ink =
+    rgb255 26 31 36
+
+
+inkSoft : Color
+inkSoft =
+    rgb255 90 100 108
+
+
+muted : Color
+muted =
+    rgb255 140 148 154
+
+
+hairline : Color
+hairline =
+    rgb255 230 228 222
+
+
+chip : Color
+chip =
+    rgb255 236 240 238
+
+
+teal : Color
+teal =
+    rgb255 11 79 84
+
+
+tealDeep : Color
+tealDeep =
+    rgb255 7 58 62
+
+
+tealSoft : Color
+tealSoft =
+    rgb255 214 232 233
+
+
+gold : Color
+gold =
+    rgb255 196 163 90
+
+
+goldSoft : Color
+goldSoft =
+    rgb255 244 234 210
+
+
+sage : Color
+sage =
+    rgb255 61 107 90
+
+
+sageSoft : Color
+sageSoft =
+    rgb255 220 232 224
+
+
+danger : Color
+danger =
+    rgb255 196 57 52
+
+
+white : Color
+white =
+    rgb255 255 255 255
+
+
+meBubble : Color
+meBubble =
+    rgb255 11 79 84
+
+
+coachBubble : Color
+coachBubble =
+    rgb255 236 240 238

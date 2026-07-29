@@ -1,0 +1,1 @@
+Counter is the Walnut smoke app: tap +, tap -, reset. Built with TEA -> LLVM -> native iOS -- the same path as production Walnut apps.

@@ -1,0 +1,443 @@
+module View.Chrome exposing (..)
+
+import Ui exposing (..)
+import View.Theme exposing (..)
+
+
+eyebrow : String -> View msg
+eyebrow label =
+    el [ fontSize 12, semibold, fontColor muted ] (text label)
+
+
+displayTitle : String -> View msg
+displayTitle title =
+    column [ spacing 0, width fill ]
+        [ el [ height (px 10) ] (text "")
+        , el
+            [ fontSize 28
+            , serif
+            , fontColor ink
+            , width fill
+            ]
+            (text title)
+        , el [ height (px 10) ] (text "")
+        ]
+
+
+avatar : String -> Color -> View msg
+avatar initial _ =
+    el
+        [ width (px 40)
+        , height (px 40)
+        , rounded 20
+        , bg tealSoft
+        ]
+        (el
+            [ fontSize 15
+            , semibold
+            , fontColor teal
+            , textCenter
+            , width fill
+            , paddingXY 0 10
+            ]
+            (text initial)
+        )
+
+
+{-| Standard leading back control (nav bar is host-hidden).
+-}
+backBar : String -> msg -> View msg
+backBar label msg =
+    button
+        [ onTap msg
+        , padding 4
+        ]
+        [ row [ spacing 2, centerY ]
+            [ icon [ tint teal, fontSize 17 ] "chevron.left"
+            , el [ fontSize 17, fontColor teal ] (text label)
+            ]
+        ]
+
+
+{-| Circular face from asset catalog, or initial fallback when photo is empty.
+-}
+faceAvatar : String -> String -> View msg
+faceAvatar photo initial =
+    if String.isEmpty photo then
+        avatar initial teal
+
+    else
+        el
+            [ width (px 40)
+            , height (px 40)
+            , rounded 20
+            , bg tealSoft
+            ]
+            (image [ width (px 40), height (px 40), rounded 20 ] photo)
+
+
+{-| Square lesson thumb — track SF Symbol on a soft well.
+-}
+lessonThumb : String -> Color -> Color -> View msg
+lessonThumb symbol wellBg tintColor =
+    el
+        [ width (px 56)
+        , height (px 56)
+        , rounded 14
+        , bg wellBg
+        ]
+        (el [ width fill, height (px 56), centerX ]
+            (icon [ tint tintColor, fontSize 24 ] symbol)
+        )
+
+
+{-| Tall coach photo well for tiles.
+-}
+coachPhoto : String -> View msg
+coachPhoto asset =
+    el
+        [ width fill
+        , height (px 120)
+        , rounded 16
+        , bg tealSoft
+        ]
+        (image [ width fill, height (px 120), rounded 16 ] asset)
+
+
+{-| Compact photo for chat headers.
+-}
+coachPhotoSm : String -> View msg
+coachPhotoSm asset =
+    el
+        [ width (px 52)
+        , height (px 52)
+        , rounded 14
+        , bg tealSoft
+        ]
+        (image [ width (px 52), height (px 52), rounded 14 ] asset)
+
+
+progressBar : Int -> Int -> View msg
+progressBar done total =
+    let
+        widthPx =
+            if total <= 0 then
+                0
+
+            else if done <= 0 then
+                4
+
+            else
+                done * 36
+    in
+    column [ spacing 8, width fill ]
+        [ row
+            [ width fill
+            , height (px 8)
+            , bg chip
+            , rounded 4
+            ]
+            [ el
+                [ width (px widthPx)
+                , height (px 8)
+                , bg sage
+                , rounded 4
+                ]
+                (text "")
+            , spacer
+            ]
+        , el [ fontSize 13, fontColor inkSoft ]
+            (text (String.fromInt done ++ " / " ++ String.fromInt total ++ " complete"))
+        ]
+
+
+card : List (Attr msg) -> List (View msg) -> View msg
+card attrs kids =
+    el
+        ([ width fill
+         , padding 18
+         , bg surface
+         , rounded 20
+         , border 1 hairline
+         ]
+            ++ attrs
+        )
+        (column [ spacing 10, width fill ] kids)
+
+
+segmentChip : Bool -> String -> msg -> View msg
+segmentChip on label msg =
+    button
+        [ onTap msg
+        , padding 10
+        , rounded 12
+        , bg
+            (if on then
+                surface
+
+             else
+                rgba 0.0 0.0 0.0 0.0
+            )
+        ]
+        [ el
+            [ fontSize 14
+            , semibold
+            , fontColor
+                (if on then
+                    ink
+
+                 else
+                    muted
+                )
+            ]
+            (text label)
+        ]
+
+
+{-| Circular SF Symbol well — fixed size, no centerX (avoids row layout fights).
+-}
+iconWell : String -> Color -> Color -> View msg
+iconWell symbol wellBg tintColor =
+    el
+        [ width (px 44)
+        , height (px 44)
+        , rounded 22
+        , bg wellBg
+        ]
+        (el
+            [ width fill
+            , height (px 44)
+            , centerX
+            ]
+            (icon [ tint tintColor, fontSize 18 ] symbol)
+        )
+
+
+{-| One day in the week strip — SF Symbol rings (reliable paint vs custom wells).
+-}
+weekDayChip : String -> String -> View msg
+weekDayChip label mark =
+    column [ spacing 4, width (px 40) ]
+        [ el
+            [ width (px 40)
+            , height (px 36)
+            , centerX
+            ]
+            (icon
+                [ tint (dayTint mark)
+                , fontSize 28
+                ]
+                (daySymbol mark)
+            )
+        , el [ fontSize 11, semibold, fontColor muted, textCenter, width fill ]
+            (text label)
+        ]
+
+
+dayTint : String -> Color
+dayTint mark =
+    if mark == "kept" then
+        teal
+
+    else if mark == "today" then
+        teal
+
+    else if mark == "missed" then
+        muted
+
+    else
+        hairline
+
+
+daySymbol : String -> String
+daySymbol mark =
+    if mark == "kept" then
+        "checkmark.circle.fill"
+
+    else if mark == "today" then
+        "circle.inset.filled"
+
+    else
+        "circle"
+
+
+{-| Daily goal row: icon | text | trailing check (right-aligned).
+-}
+taskRow : String -> String -> String -> Bool -> msg -> View msg
+taskRow symbol title detail kept msg =
+    button
+        [ onTap msg
+        , width fill
+        ]
+        [ el
+            [ width fill
+            , paddingXY 14 14
+            , bg
+                (if kept then
+                    sageSoft
+
+                 else
+                    surface
+                )
+            , rounded 20
+            , border 1 hairline
+            ]
+            (row [ spacing 12, centerY, width fill ]
+                [ iconWell
+                    symbol
+                    (if kept then
+                        sage
+
+                     else
+                        mist
+                    )
+                    (if kept then
+                        white
+
+                     else
+                        teal
+                    )
+                , column [ spacing 4, width fill ]
+                    [ el
+                        [ fontSize 15
+                        , semibold
+                        , fontColor ink
+                        , paddingXY 0 3
+                        , width fill
+                        ]
+                        (text title)
+                    , el
+                        [ fontSize 13
+                        , fontColor inkSoft
+                        , paddingXY 0 2
+                        , width fill
+                        ]
+                        (text detail)
+                    ]
+                , icon
+                    [ tint
+                        (if kept then
+                            sage
+
+                         else
+                            muted
+                        )
+                    , fontSize 22
+                    ]
+                    (if kept then
+                        "checkmark.circle.fill"
+
+                     else
+                        "circle"
+                    )
+                ]
+            )
+        ]
+
+
+{-| Lesson promo with rounded photo + caption strip.
+-}
+lessonPromoCard : String -> String -> String -> msg -> View msg
+lessonPromoCard title excerpt photo msg =
+    button
+        [ onTap msg
+        , width fill
+        ]
+        [ column
+            [ width fill
+            , spacing 0
+            , bg surface
+            , rounded 20
+            , border 1 hairline
+            ]
+            [ el
+                [ width fill
+                , paddingXY 16 14
+                ]
+                (column [ spacing 8, width fill ]
+                    [ row [ spacing 8, centerY ]
+                        [ icon [ tint teal, fontSize 16 ] "book"
+                        , el [ fontSize 12, semibold, fontColor teal ] (text "LEARN")
+                        ]
+                    , el
+                        [ fontSize 17
+                        , serif
+                        , fontColor ink
+                        , paddingXY 0 4
+                        , width fill
+                        ]
+                        (text title)
+                    , el [ fontSize 14, fontColor inkSoft, width fill ] (text excerpt)
+                    ]
+                )
+            , el
+                [ width fill
+                , height (px 140)
+                , paddingXY 12 0
+                ]
+                (image [ width fill, height (px 140), rounded 14 ] photo)
+            , el
+                [ width fill
+                , paddingXY 16 14
+                , bg teal
+                ]
+                (row [ width fill, centerY ]
+                    [ el
+                        [ fontSize 15
+                        , semibold
+                        , fontColor white
+                        , paddingXY 0 4
+                        ]
+                        (text "Continue lesson")
+                    , spacer
+                    , icon [ tint white, fontSize 14 ] "arrow.right"
+                    ]
+                )
+            ]
+        ]
+
+
+{-| Hero: rounded photo card + separate rounded steps strip (reliable fill paint).
+-}
+heroMoment : String -> String -> String -> View msg
+heroMoment photo stepsLine sourceLine =
+    column [ spacing 12, width fill ]
+        [ el
+            [ width fill
+            , height (px 168)
+            , rounded 20
+            , bg mist
+            ]
+            (image [ width fill, height (px 168), rounded 20 ] photo)
+        , el
+            [ width fill
+            , paddingXY 18 16
+            , rounded 20
+            , bg teal
+            ]
+            (column [ spacing 4, width fill ]
+                [ el
+                    [ fontSize 11
+                    , semibold
+                    , fontColor tealSoft
+                    , paddingXY 0 2
+                    ]
+                    (text "STEPS TODAY")
+                , el
+                    [ fontSize 26
+                    , serif
+                    , fontColor white
+                    , paddingXY 0 6
+                    , width fill
+                    ]
+                    (text stepsLine)
+                , el
+                    [ fontSize 11
+                    , semibold
+                    , fontColor gold
+                    , paddingXY 0 2
+                    ]
+                    (text sourceLine)
+                ]
+            )
+        ]

@@ -1,0 +1,17 @@
+name = "VendorDemo"
+bundle_id = "dev.walnut.vendordemo"
+sources = "src"
+
+[packages]
+vendor = true
+path = "vendor/walnut"
+
+# Registry URL used when refreshing pins (`walnut update`).
+# Day-to-day `install` / `check` use committed vendor/walnut + walnut.lock.
+[[source]]
+name = "walnut"
+url = "https://packages.walnutlang.com"
+
+[dependencies]
+Greeter = "0.1.0"
+LocalTip = { path = "packages/LocalTip" }

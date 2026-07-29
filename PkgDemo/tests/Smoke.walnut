@@ -1,0 +1,15 @@
+module Smoke exposing (main)
+
+import Greeter.Hello exposing (greet)
+import Test exposing (..)
+
+
+main =
+    format
+        (run
+            (describe "PkgDemo"
+                [ test "greet"
+                    (equal (greet "world") "hello, world")
+                ]
+            )
+        )

@@ -1,0 +1,447 @@
+module Pages.Today exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Care as Care
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+import View.Chrome exposing (..)
+
+
+view : Model -> View Msg
+view model =
+    column [ width fill, height fill, bg canvas ]
+        [ scroll
+            [ spacing 18
+            , width fill
+            , height fill
+            , paddingXY 20 16
+            , scrollBottomInset 140
+            , onRefresh (feedback RefreshVitals)
+            ]
+            [ headerBlock model
+            , nextActionCard model
+            , focusSection model
+            , latestStrip model
+            , notesCard model
+            , coachNudge model
+            , lessonSection model
+            , manualCard model
+            , el [ fontSize 12, fontColor muted, paddingXY 0 4 ]
+                (text "Educational coaching demo · not a medical device")
+            , el [ height (px 96) ] (text "")
+            ]
+        , logFab
+        , logMenu model
+        ]
+
+
+headerBlock : Model -> View Msg
+headerBlock model =
+    el
+        [ width fill
+        , padding 18
+        , bg surface
+        , rounded 20
+        , border 1 hairline
+        ]
+        (column [ spacing 8, width fill ]
+            [ row [ width fill, centerY ]
+                [ eyebrow "TODAY"
+                , spacer
+                , faceAvatar "" "Y"
+                ]
+            , displayTitle (Care.greeting model)
+            , el [ fontSize 15, fontColor inkSoft, width fill ]
+                (text (Care.planSummary model.profile))
+            , el [ fontSize 12, fontColor muted, width fill ]
+                (text model.statusLine)
+            ]
+        )
+
+
+nextActionCard : Model -> View Msg
+nextActionCard model =
+    card []
+        [ el [ fontSize 12, semibold, fontColor teal ] (text "ONE NEXT ACTION")
+        , el
+            [ fontSize 22
+            , serif
+            , fontColor ink
+            , paddingXY 0 4
+            , width fill
+            ]
+            (text (Care.insightTitle model.profile))
+        , el [ fontSize 15, fontColor inkSoft, width fill ]
+            (text (Care.insightBody model.profile))
+        ]
+
+
+focusSection : Model -> View Msg
+focusSection model =
+    let
+        goals =
+            Care.visibleDailyGoals model
+    in
+    column [ spacing 10, width fill ]
+        [ el [ fontSize 12, semibold, fontColor teal ] (text "TODAY’S FOCUS")
+        , if List.length goals == 0 then
+            card []
+                [ el [ fontSize 15, fontColor inkSoft ]
+                    (text "Turn on conditions in Plan to see daily goals for your care.")
+                ]
+
+          else
+            column [ spacing 8, width fill ]
+                (List.map goalRow goals)
+        ]
+
+
+goalRow : Commitment -> View Msg
+goalRow c =
+    taskRow c.symbol c.title c.detail c.kept (account (ToggleCommitment c.id))
+
+
+latestStrip : Model -> View Msg
+latestStrip model =
+    card []
+        [ el [ fontSize 12, semibold, fontColor teal ] (text "LATEST")
+        , row [ spacing 10, width fill ]
+            (latestChips model)
+        , button
+            [ onTap (nav (SelectTab AccountTab))
+            , width fill
+            , padding 12
+            , rounded 14
+            , bg mist
+            ]
+            [ el [ fontSize 14, semibold, fontColor teal, textCenter, width fill ]
+                (text "See Progress →")
+            ]
+        ]
+
+
+latestChips : Model -> List (View Msg)
+latestChips model =
+    List.append
+        [ latestChip "Steps" (String.fromInt model.vitals.steps) ]
+        (List.append
+            (if Care.tracksGlucose model.profile then
+                [ latestChip "Glucose" (glucoseLabel model) ]
+
+             else
+                []
+            )
+            (List.append
+                (if Care.tracksBP model.profile then
+                    [ latestChip "BP" (bpLabel model) ]
+
+                 else
+                    []
+                )
+                (if Care.tracksLipids model.profile || Care.tracksGlp1 model.profile then
+                    [ latestChip "Wt" (weightLabel model) ]
+
+                 else
+                    []
+                )
+            )
+        )
+
+
+latestChip : String -> String -> View Msg
+latestChip label value =
+    el
+        [ width fill
+        , padding 12
+        , bg mist
+        , rounded 14
+        ]
+        (column [ spacing 4 ]
+            [ el [ fontSize 11, fontColor muted ] (text label)
+            , el [ fontSize 16, semibold, fontColor ink ] (text value)
+            ]
+        )
+
+
+glucoseLabel : Model -> String
+glucoseLabel model =
+    if model.vitals.glucose == 0 then
+        "—"
+
+    else
+        String.fromInt model.vitals.glucose
+
+
+bpLabel : Model -> String
+bpLabel model =
+    if model.vitals.bpSys == 0 then
+        "—"
+
+    else
+        String.fromInt model.vitals.bpSys ++ "/" ++ String.fromInt model.vitals.bpDia
+
+
+weightLabel : Model -> String
+weightLabel model =
+    if model.vitals.weight == 0 then
+        "—"
+
+    else
+        String.fromInt model.vitals.weight ++ " lb"
+
+
+lessonSection : Model -> View Msg
+lessonSection model =
+    case Care.homeLesson model of
+        Nothing ->
+            none
+
+        Just lesson ->
+            lessonPromoCard
+                lesson.title
+                lesson.excerpt
+                (Care.lessonHeroAsset lesson)
+                (feedback ContinueHomeLesson)
+
+
+logFab : View Msg
+logFab =
+    row
+        [ floatBottom
+        , key "today-log-fab"
+        , width fill
+        , paddingXY 20 0
+        ]
+        [ spacer
+        , column [ spacing 0 ]
+            [ button
+                [ onTap (feedback OpenLogMenu)
+                , bg teal
+                , rounded 28
+                , padding 16
+                ]
+                [ icon [ tint white, fontSize 22 ] "plus" ]
+            , el [ height (px 92) ] (text "")
+            ]
+        ]
+
+
+logMenu : Model -> View Msg
+logMenu model =
+    if model.logMenuOpen then
+        overlay
+            [ fade
+            , onTap (feedback CloseLogMenu)
+            ]
+            (column
+                [ key "today-log-menu"
+                , width fill
+                , spacing 8
+                , paddingXY 18 18
+                , rounded 22
+                , bg surface
+                ]
+                (List.append
+                    [ el [ fontSize 18, serif, fontColor ink, paddingXY 0 6 ] (text "Log something")
+                    , el [ fontSize 14, fontColor inkSoft ]
+                        (text "Quick capture for today — trends live on Progress.")
+                    , logOption "square.and.pencil" "Note" "Siri or status hint" (feedback QuickNoteHint)
+                    ]
+                    (List.append
+                        (if Care.tracksGlucose model.profile then
+                            [ logOption "drop.fill" "Glucose" "Manual reading below" (feedback QuickGlucoseHint) ]
+
+                         else
+                            []
+                        )
+                        (List.append
+                            (if Care.tracksLipids model.profile || Care.tracksGlp1 model.profile then
+                                [ logOption "scalemass" "Weight" "Latest from your source" (feedback QuickWeightHint) ]
+
+                             else
+                                []
+                            )
+                            [ logOption "arrow.clockwise" "Sync" "Pull Fitbit / HealthKit" (feedback RefreshVitals)
+                            , button
+                                [ onTap (feedback CloseLogMenu)
+                                , width fill
+                                , padding 12
+                                , rounded 14
+                                , bg chip
+                                ]
+                                [ el [ fontSize 15, fontColor ink, textCenter, width fill ] (text "Cancel") ]
+                            ]
+                        )
+                    )
+                )
+            )
+
+    else
+        none
+
+
+logOption : String -> String -> String -> Msg -> View Msg
+logOption symbol title detail msg =
+    button
+        [ onTap msg
+        , width fill
+        ]
+        [ el
+            [ width fill
+            , padding 12
+            , rounded 14
+            , bg mist
+            ]
+            (row [ spacing 12, centerY, width fill ]
+                [ iconWell symbol surface teal
+                , column [ spacing 2, width fill ]
+                    [ el [ fontSize 15, semibold, fontColor ink, paddingXY 0 2 ] (text title)
+                    , el [ fontSize 13, fontColor inkSoft ] (text detail)
+                    ]
+                , icon [ tint muted, fontSize 14 ] "chevron.right"
+                ]
+            )
+        ]
+
+
+notesCard : Model -> View Msg
+notesCard model =
+    let
+        notes =
+            Care.homeNotes model
+    in
+    if List.length notes == 0 then
+        card []
+            [ el [ fontSize 12, semibold, fontColor teal ] (text "NOTES")
+            , el [ fontSize 15, fontColor inkSoft ]
+                (text "Say: Log my day in Lumen. Sorted on-device for your plan.")
+            ]
+
+    else
+        card []
+            (List.append
+                [ el [ fontSize 12, semibold, fontColor teal ] (text "NOTES") ]
+                (List.map noteRow notes)
+            )
+
+
+noteRow : Note -> View Msg
+noteRow note =
+    column [ spacing 4, width fill ]
+        [ row [ width fill, centerY ]
+            [ el [ fontSize 12, semibold, fontColor teal ]
+                (text
+                    (if note.status == "pending" then
+                        "PENDING"
+
+                     else if String.isEmpty note.kind then
+                        "READY"
+
+                     else
+                        String.toUpper note.kind
+                    )
+                )
+            , spacer
+            , el [ fontSize 12, fontColor muted ] (text (noteMeta note))
+            ]
+        , el [ fontSize 16, fontColor ink, paddingXY 0 2, width fill ] (text note.text)
+        ]
+
+
+noteMeta : Note -> String
+noteMeta note =
+    if note.status == "pending" then
+        "sorting…"
+
+    else if not (String.isEmpty note.summary) then
+        note.summary
+
+    else if note.coachId == "coach-priya" then
+        "to Priya"
+
+    else if note.coachId == "coach-ava" then
+        "to Ava"
+
+    else if note.coachId == "coach-marcus" then
+        "to Marcus"
+
+    else if note.coachId == "coach-jordan" then
+        "to Jordan"
+
+    else
+        ""
+
+
+coachNudge : Model -> View Msg
+coachNudge model =
+    case primaryCoach model of
+        Nothing ->
+            none
+
+        Just coach ->
+            el
+                [ onTap (feedback OpenHomeCoach)
+                , width fill
+                ]
+                (card []
+                    [ row [ spacing 12, centerY, width fill ]
+                        [ coachPhotoSm (Care.coachAsset coach.id)
+                        , column [ spacing 2, width fill ]
+                            [ el [ fontSize 12, fontColor muted ] (text "YOUR COACH FOR THIS PLAN")
+                            , el [ fontSize 16, semibold, fontColor ink, paddingXY 0 2, width fill ]
+                                (text ("Message " ++ coach.name))
+                            , el [ fontSize 13, fontColor inkSoft, width fill ] (text coach.specialty)
+                            ]
+                        ]
+                    ]
+                )
+
+
+primaryCoach : Model -> Maybe Coach
+primaryCoach model =
+    let
+        id =
+            Care.primaryCoachId model.profile
+    in
+    case List.head (List.filter (\c -> c.id == id) model.coaches) of
+        Just c ->
+            Just c
+
+        Nothing ->
+            List.head model.coaches
+
+
+manualCard : Model -> View Msg
+manualCard model =
+    if not (Care.tracksGlucose model.profile) then
+        none
+
+    else
+        card []
+            [ el [ fontSize 15, semibold, fontColor ink, paddingXY 0 2 ] (text "Manual glucose")
+            , el [ fontSize 13, fontColor muted ]
+                (text "mg/dL · on because Type 2 or prediabetes is in your plan")
+            , textField
+                [ key "glucose"
+                , width fill
+                , height (px 48)
+                , padding 14
+                , bg canvas
+                , rounded 14
+                , content model.manualGlucose
+                , placeholder "e.g. 112"
+                , onInput (\s -> feedback (ManualGlucoseChanged s))
+                , fontSize 16
+                ]
+            , button
+                [ onTap (feedback SaveManualGlucose)
+                , width fill
+                , padding 12
+                , rounded 14
+                , bg teal
+                ]
+                [ el [ fontSize 15, semibold, fontColor white, textCenter, width fill, paddingXY 0 2 ]
+                    (text "Save reading")
+                ]
+            ]

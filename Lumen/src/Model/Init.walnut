@@ -1,0 +1,315 @@
+module Model.Init exposing (init, blank, seedLessons, seedCommitments, seedWeekDays, seedTrends, seedCoaches, seedCircles, seedPosts, seedThreads)
+
+import Cmd exposing (Cmd)
+import CoreData
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+
+
+metaCollection : String
+metaCollection =
+    "lumen.profile.v3"
+
+
+prefsId : String
+prefsId =
+    "prefs"
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( blank
+    , CoreData.get metaCollection prefsId onGotPrefs
+    )
+
+
+blank : Model
+blank =
+    { onboardingDone = True
+    , onboardingStep = 0
+    , tab = FeedbackTab
+    , profile =
+        { prediabetes = True
+        , type2 = True
+        , lipids = True
+        , hypertension = True
+        , glp1 = True
+        }
+    , vitals =
+        { steps = 6842
+        , heartRate = 72
+        , glucose = 108
+        , bpSys = 118
+        , bpDia = 76
+        , weight = 182
+        , source = "Fitbit demo"
+        }
+    , trends = seedTrends
+    , lessons = seedLessons
+    , commitments = seedCommitments
+    , coaches = seedCoaches
+    , threads = seedThreads
+    , circles = seedCircles
+    , joinedCircles = seedJoined
+    , posts = seedPosts
+    , notes = []
+    , selectedLesson = Nothing
+    , selectedCoach = Nothing
+    , selectedCircle = Nothing
+    , selectedPost = Nothing
+    , learnSegment = 0
+    , forumSegment = 0
+    , forumQuery = ""
+    , composeOpen = False
+    , leaveConfirmId = Nothing
+    , reactionPicker = Nothing
+    , communityDraft = ""
+    , chatDraft = ""
+    , replyDraft = ""
+    , hkReady = False
+    , fitbitDemo = True
+    , fitbitConnected = False
+    , statusLine = "Fitbit demo · synced a moment ago"
+    , checkInOpen = False
+    , manualGlucose = ""
+    , userName = "You"
+    , weekDays = seedWeekDays
+    , streakDays = 3
+    , logMenuOpen = False
+    }
+
+
+seedCoaches : List Coach
+seedCoaches =
+    [ { id = "coach-ava", name = "Ava Chen, RD", role = "Nutrition coach", specialty = "GLP-1 · protein", blurb = "", initial = "A" }
+    , { id = "coach-marcus", name = "Marcus Hale, RN", role = "Clinical coach", specialty = "Type 2 · glucose", blurb = "", initial = "M" }
+    , { id = "coach-priya", name = "Priya Shah, PT", role = "Movement coach", specialty = "BP · walks", blurb = "", initial = "P" }
+    , { id = "coach-jordan", name = "Jordan Lee, PharmD", role = "Meds coach", specialty = "Lipids · timing", blurb = "", initial = "J" }
+    ]
+
+
+seedThreads : List Thread
+seedThreads =
+    [ { coachId = "coach-ava"
+      , lines =
+            [ { id = "t1", fromMe = False, body = "Welcome. When appetite is quiet on a GLP-1, we still protect protein—what does breakfast look like this week?" }
+            , { id = "t2", fromMe = True, body = "Greek yogurt most days, sometimes I skip." }
+            , { id = "t3", fromMe = False, body = "Skipping is common. Try a protein anchor before noon—even a shaker counts. Want a 3-option menu?" }
+            ]
+      }
+    , { coachId = "coach-marcus"
+      , lines =
+            [ { id = "m1", fromMe = False, body = "I am here for patterns, not perfection. Share a recent fasting number when you have one." }
+            ]
+      }
+    , { coachId = "coach-priya"
+      , lines =
+            [ { id = "p1", fromMe = False, body = "Ten minutes after your largest meal is enough to start. Shall we pick lunch or dinner?" }
+            ]
+      }
+    , { coachId = "coach-jordan"
+      , lines =
+            [ { id = "j1", fromMe = False, body = "Bring your lipid panel questions—timing with food matters more than people think." }
+            ]
+      }
+    ]
+
+
+seedCircles : List Circle
+seedCircles =
+    [ { id = "circ-meta", name = "Glucose patterns", topic = "Type 2 · Prediabetes", blurb = "After-meal walks, fasting numbers, and what actually moved the needle.", members = 1284, activity = "12 new today" }
+    , { id = "circ-glp", name = "GLP-1 real talk", topic = "Appetite · protein", blurb = "Quiet appetite days, nausea timing, and protein that still fits.", members = 892, activity = "8 new today" }
+    , { id = "circ-bp", name = "Home BP club", topic = "Hypertension", blurb = "Seated readings, white-coat stories, and stacking walks after measure.", members = 640, activity = "5 new today" }
+    , { id = "circ-lip", name = "Lipids without panic", topic = "Cholesterol · meds", blurb = "LDL context, statin timing questions, and what to ask next visit.", members = 411, activity = "3 new today" }
+    , { id = "circ-sleep", name = "Sleep & recovery", topic = "Habits", blurb = "Protecting sleep when glucose, BP, or GLP-1 make nights weird.", members = 756, activity = "9 new today" }
+    , { id = "circ-kitchen", name = "Kitchen experiments", topic = "Food", blurb = "One swap that worked—plates, snacks, and grocery shortcuts.", members = 1102, activity = "15 new today" }
+    , { id = "circ-care", name = "Clinic visit prep", topic = "Questions", blurb = "Bring one clear question. Share what your clinician said back.", members = 528, activity = "4 new today" }
+    , { id = "circ-wins", name = "Small wins", topic = "Accountability", blurb = "Not streaks—just one thing you protected this week.", members = 1490, activity = "21 new today" }
+    ]
+
+
+seedJoined : List String
+seedJoined =
+    [ "circ-meta", "circ-glp", "circ-bp", "circ-lip" ]
+
+
+seedPosts : List Post
+seedPosts =
+    [ { id = "post-1"
+      , circleId = "circ-meta"
+      , author = "Maya R."
+      , initial = "M"
+      , photo = "UserMaya"
+      , body = "Walked after dinner three nights. Morning number felt steadier—not magic, just consistent."
+      , reactions = [ { emoji = "💪", count = 12, mine = False }, { emoji = "❤️", count = 8, mine = False } ]
+      , replies =
+            [ { id = "r1a", author = "Chris L.", initial = "C", photo = "UserChris", body = "Night walks changed everything for me too.", reactions = [ { emoji = "👍", count = 3, mine = False } ] }
+            , { id = "r1b", author = "Sam K.", initial = "S", photo = "UserSam", body = "Proud of you for starting small.", reactions = [] }
+            ]
+      }
+    , { id = "post-2"
+      , circleId = "circ-glp"
+      , author = "Sam K."
+      , initial = "S"
+      , photo = "UserSam"
+      , body = "Week 4 on a GLP-1. Protein at breakfast is the only rule that stuck. Anyone else get nauseous if dinner is late?"
+      , reactions = [ { emoji = "🙏", count = 18, mine = True }, { emoji = "👍", count = 9, mine = False } ]
+      , replies =
+            [ { id = "r2a", author = "Maya R.", initial = "M", photo = "UserMaya", body = "Late fatty dinners get me too. Earlier + smaller helped.", reactions = [ { emoji = "❤️", count = 5, mine = False } ] }
+            ]
+      }
+    , { id = "post-3"
+      , circleId = "circ-bp"
+      , author = "Jordan P."
+      , initial = "J"
+      , photo = "UserJordanP"
+      , body = "Logged BP before coffee for a week. Numbers dropped ~8 systolic vs rushed clinic reads."
+      , reactions = [ { emoji = "💪", count = 7, mine = False } ]
+      , replies = []
+      }
+    , { id = "post-4"
+      , circleId = "circ-lip"
+      , author = "Riley T."
+      , initial = "R"
+      , photo = "UserRiley"
+      , body = "Asked my clinician about timing statin with dinner. Glad I asked—felt less anxious after."
+      , reactions = [ { emoji = "👍", count = 6, mine = False } ]
+      , replies =
+            [ { id = "r4a", author = "Chris L.", initial = "C", photo = "UserChris", body = "Pharmacist coaches are underrated for this exact question.", reactions = [] }
+            ]
+      }
+    , { id = "post-5"
+      , circleId = "circ-wins"
+      , author = "Chris L."
+      , initial = "C"
+      , photo = "UserChris"
+      , body = "What is one small win you are protecting this week?"
+      , reactions = [ { emoji = "❤️", count = 14, mine = False }, { emoji = "😊", count = 6, mine = False } ]
+      , replies =
+            [ { id = "r5a", author = "Maya R.", initial = "M", photo = "UserMaya", body = "Sleep before midnight.", reactions = [ { emoji = "🙏", count = 2, mine = False } ] }
+            , { id = "r5b", author = "Riley T.", initial = "R", photo = "UserRiley", body = "No soda Tue–Thu.", reactions = [] }
+            ]
+      }
+    , { id = "post-6"
+      , circleId = "circ-kitchen"
+      , author = "Maya R."
+      , initial = "M"
+      , photo = "UserMaya"
+      , body = "Swapped my usual bagel for Greek yogurt + berries three mornings. Energy held until lunch."
+      , reactions = [ { emoji = "👍", count = 11, mine = False } ]
+      , replies =
+            [ { id = "r6a", author = "Sam K.", initial = "S", photo = "UserSam", body = "That combo is my GLP-1 breakfast too.", reactions = [] }
+            ]
+      }
+    , { id = "post-7"
+      , circleId = "circ-sleep"
+      , author = "Jordan P."
+      , initial = "J"
+      , photo = "UserJordanP"
+      , body = "BP meds at night + phone in the other room. Sleeping deeper, morning reads calmer."
+      , reactions = [ { emoji = "🙏", count = 5, mine = False } ]
+      , replies = []
+      }
+    , { id = "post-8"
+      , circleId = "circ-care"
+      , author = "Riley T."
+      , initial = "R"
+      , photo = "UserRiley"
+      , body = "Wrote three questions before my lipid panel follow-up. Appointment felt like a conversation, not a blur."
+      , reactions = [ { emoji = "💪", count = 9, mine = False } ]
+      , replies =
+            [ { id = "r8a", author = "Chris L.", initial = "C", photo = "UserChris", body = "Bringing a written list is underrated.", reactions = [ { emoji = "👍", count = 4, mine = False } ] }
+            ]
+      }
+    ]
+
+
+seedLessons : List Lesson
+seedLessons =
+    [ { id = "t2-1", track = "Type 2", title = "What insulin resistance feels like", minutes = 4, excerpt = "Energy dips and hunger swings are signals—not a moral failure.", body = "Insulin resistance is gradual. Energy dips, hunger swings, and fasting glucose creep are early signals—not a moral failure.\n\nLumen helps you notice patterns across days, not chase a perfect plate. Pair this lesson with a check-in to Marcus if a number feels loud.", coachId = "coach-marcus", done = False }
+    , { id = "t2-2", track = "Type 2", title = "Plates that steady glucose", minutes = 5, excerpt = "Protein and fiber first; a short walk beats another rule.", body = "Lead with protein and fiber, then starch. Walking 10 minutes after a meal often blunts a spike more than skipping dessert forever.\n\nTry it once this week and note how you feel two hours later.", coachId = "coach-marcus", done = False }
+    , { id = "pre-1", track = "Prediabetes", title = "Prediabetes is a window", minutes = 3, excerpt = "A signal, not a sentence—habits still move the needle.", body = "A1C in the prediabetes range is a signal, not a sentence. The same habits that help Type 2—movement, sleep, protein—still move the needle here.\n\nUse Feedback to watch trends, not to panic at a single reading.", coachId = "coach-marcus", done = False }
+    , { id = "bp-1", track = "Blood pressure", title = "Why home readings matter", minutes = 4, excerpt = "Two calm mornings beat one rushed afternoon number.", body = "Clinic readings miss white-coat and masked hypertension. Two calm morning readings beat one rushed afternoon number.\n\nSit, feet flat, no talking—then log. Priya can help you stack a walk after.", coachId = "coach-priya", done = False }
+    , { id = "bp-2", track = "Blood pressure", title = "Sodium, sleep, and steady breath", minutes = 5, excerpt = "Most sodium hides in packages; sleep is a lever too.", body = "Most sodium is in packaged food. Protect sleep and try two minutes of slow exhales before you measure.\n\nAccountability can hold the morning reading habit.", coachId = "coach-priya", done = False }
+    , { id = "lip-1", track = "Cholesterol", title = "LDL without the panic", minutes = 4, excerpt = "One lever among many—know what your clinician watches.", body = "LDL is one lever among many. Know your number, your family history, and what your clinician is watching—then build habits you can keep.\n\nJordan is available for timing and medication questions (not prescribing).", coachId = "coach-jordan", done = False }
+    , { id = "glp-1", track = "GLP-1", title = "GLP-1: protein, fluid, strength", minutes = 6, excerpt = "Appetite quieting is the point—not eating nothing.", body = "Appetite quieting is the point—not eating nothing. Anchor protein, sip fluids, and keep light strength work so muscle stays with you.\n\nMessage Ava for a three-option breakfast menu tailored to quiet appetite days.", coachId = "coach-ava", done = False }
+    , { id = "glp-2", track = "GLP-1", title = "Side effects as data", minutes = 4, excerpt = "Nausea often tracks meal size and fat load.", body = "Nausea often tracks meal size and fat load. Smaller, earlier dinners and ginger tea are practical—not medical orders.\n\nEscalate persistent symptoms to your clinician. Coaches help you prepare questions.", coachId = "coach-ava", done = False }
+    , { id = "agency-1", track = "Agency", title = "You are the decision-maker", minutes = 3, excerpt = "Coaching informs you. You choose what to try.", body = "Coaching and data inform you. You choose what to try this week. Pause nudges anytime in Agency.\n\nYour circles and coaches stay available either way.", coachId = "coach-marcus", done = False }
+    ]
+
+
+seedCommitments : List Commitment
+seedCommitments =
+    [ { id = "c1", title = "10-minute walk after a meal", detail = "Pick lunch or dinner — Priya can help you choose.", kept = False, symbol = "figure.walk", daily = True }
+    , { id = "c2", title = "Log morning blood pressure", detail = "Before coffee, seated, two readings.", kept = False, symbol = "heart.text.square", daily = True }
+    , { id = "c3", title = "Protein at breakfast", detail = "Especially on GLP-1 weeks — Ava has menus.", kept = False, symbol = "fork.knife", daily = True }
+    ]
+
+
+seedWeekDays : List DayMark
+seedWeekDays =
+    [ { label = "M", mark = "kept" }
+    , { label = "T", mark = "kept" }
+    , { label = "W", mark = "today" }
+    , { label = "T", mark = "empty" }
+    , { label = "F", mark = "empty" }
+    , { label = "S", mark = "empty" }
+    , { label = "S", mark = "empty" }
+    ]
+
+
+seedTrends : List TrendSeries
+seedTrends =
+    [ { id = "steps"
+      , title = "Steps"
+      , unit = "steps"
+      , points =
+            [ { label = "M", value = 5200 }
+            , { label = "T", value = 6100 }
+            , { label = "W", value = 6842 }
+            , { label = "T", value = 4300 }
+            , { label = "F", value = 7100 }
+            , { label = "S", value = 8900 }
+            , { label = "S", value = 6400 }
+            ]
+      }
+    , { id = "glucose"
+      , title = "Glucose"
+      , unit = "mg/dL"
+      , points =
+            [ { label = "M", value = 118 }
+            , { label = "T", value = 112 }
+            , { label = "W", value = 108 }
+            , { label = "T", value = 124 }
+            , { label = "F", value = 110 }
+            , { label = "S", value = 106 }
+            , { label = "S", value = 114 }
+            ]
+      }
+    , { id = "bp"
+      , title = "Systolic BP"
+      , unit = "mmHg"
+      , points =
+            [ { label = "M", value = 122 }
+            , { label = "T", value = 118 }
+            , { label = "W", value = 118 }
+            , { label = "T", value = 126 }
+            , { label = "F", value = 120 }
+            , { label = "S", value = 116 }
+            , { label = "S", value = 119 }
+            ]
+      }
+    , { id = "weight"
+      , title = "Weight"
+      , unit = "lb"
+      , points =
+            [ { label = "M", value = 184 }
+            , { label = "T", value = 183 }
+            , { label = "W", value = 182 }
+            , { label = "T", value = 182 }
+            , { label = "F", value = 183 }
+            , { label = "S", value = 182 }
+            , { label = "S", value = 182 }
+            ]
+      }
+    ]

@@ -1,0 +1,23 @@
+module Smoke exposing (main)
+
+import Main exposing (Model, Msg(..), init, update)
+import Test exposing (..)
+
+
+main =
+    format
+        (run
+            (describe "Counter"
+                [ test "init is zero"
+                    (equalInt 0 init.count)
+                , test "Increment"
+                    (equalInt 1 (update Increment init).count)
+                , test "Increment then Decrement"
+                    (equalInt 0 (update Decrement (update Increment init)).count)
+                , test "Reset"
+                    (equalInt 0 (update Reset (update Increment (update Increment init))).count)
+                , test "equalFloat within epsilon"
+                    (equalFloat 0.3 (0.1 + 0.2) 1.0e-9)
+                ]
+            )
+        )

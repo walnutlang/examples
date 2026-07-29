@@ -1,0 +1,5 @@
+{
+  "bundleId": "dev.walnut.beacon",
+  "name": "Beacon",
+  "sources": "src"
+}

@@ -1,0 +1,85 @@
+module Main exposing (main)
+
+import Cmd exposing (Cmd)
+import Http
+import Sub exposing (Sub)
+import Time
+import Ui exposing (..)
+import Walnut
+
+
+-- MODEL
+
+type alias Model =
+    { clock : Int
+    , body : String
+    }
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( { clock = 0, body = "Tap Fetch to GET https://httpbin.org/get" }
+    , Time.now Tick
+    )
+
+
+-- UPDATE
+
+type Msg
+    = Tick Int
+    | Fetch
+    | GotBody (Result String String)
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        Tick t ->
+            ( { model | clock = t }, Cmd.none )
+
+        Fetch ->
+            ( { model | body = "Fetching…" }
+            , Http.get "https://httpbin.org/get" GotBody
+            )
+
+        GotBody result ->
+            case result of
+                Ok text ->
+                    ( { model | body = String.left 200 text }, Cmd.none )
+
+                Err err ->
+                    ( { model | body = "Error: " ++ err }, Cmd.none )
+
+
+-- SUBSCRIPTIONS
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Time.every 1000 Tick
+
+
+-- VIEW
+
+view : Model -> View Msg
+view model =
+    column [ centerX, centerY, spacing 20, padding 32, width fill ]
+        [ el [ fontSize 17, fontColor gray ] (text "Pulse")
+        , el [ fontSize 28, bold, centerX ] (text (String.fromInt model.clock))
+        , el [ fontSize 13, fontColor gray, textCenter ] (text "Posix ms · Time.every 1000")
+        , button [ onTap Fetch, glassProminent, fontSize 17, padding 14 ]
+            [ text "Fetch httpbin" ]
+        , el [ fontSize 12, fontColor gray, textCenter ]
+            (text model.body)
+        ]
+
+
+-- PROGRAM
+
+main : Walnut.Program Model Msg
+main =
+    Walnut.element
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }

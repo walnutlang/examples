@@ -1,0 +1,136 @@
+module Update.Nav exposing (update)
+
+import Cmd exposing (Cmd)
+import Maybe
+import Model.Index exposing (findItem)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+
+
+update : NavMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        SelectTab tab ->
+            selectTab tab model
+
+        BrowseOpenArea area ->
+            openArea area model
+
+        BrowseOpenList name ->
+            openList name model
+
+        BrowseBack ->
+            back model
+
+        SetSegment segment ->
+            ( { model | segment = segment }
+            , Cmd.none
+            )
+
+        OpenTask id ->
+            ( { model | selectedId = Just id, composing = False }
+            , Cmd.none
+            )
+
+        CloseTask ->
+            ( { model | selectedId = Nothing }
+            , Cmd.none
+            )
+
+        DeepLink url ->
+            openDeepLink url model
+
+
+openDeepLink : String -> Model -> ( Model, Cmd Msg )
+openDeepLink url model =
+    case parseTaskId url of
+        Nothing ->
+            ( model, Cmd.none )
+
+        Just id ->
+            case findItem id model of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just _ ->
+                    ( { model
+                        | selectedId = Just id
+                        , composing = False
+                        , tab = TodayTab
+                        , browse = BrowseRoot
+                      }
+                    , Cmd.none
+                    )
+
+
+{-| `walnut-todo://task/12` → `Just 12`.
+-}
+parseTaskId : String -> Maybe Int
+parseTaskId url =
+    Maybe.andThen (\segment -> String.toInt segment) (lastPathSegment url)
+
+
+lastPathSegment : String -> Maybe String
+lastPathSegment url =
+    List.head (List.reverse (nonEmptySegments url))
+
+
+nonEmptySegments : String -> List String
+nonEmptySegments url =
+    List.filter (\part -> not (String.isEmpty part)) (String.split "/" url)
+
+
+selectTab : Tab -> Model -> ( Model, Cmd Msg )
+selectTab tab model =
+    ( { model
+        | tab = tab
+        , composing = False
+        , selectedId = Nothing
+        , browse = resetBrowse tab model.browse
+      }
+    , Cmd.none
+    )
+
+
+resetBrowse : Tab -> BrowseFocus -> BrowseFocus
+resetBrowse tab browse =
+    case tab of
+        ListsTab ->
+            browse
+
+        TodayTab ->
+            BrowseRoot
+
+        CalendarTab ->
+            BrowseRoot
+
+        SettingsTab ->
+            BrowseRoot
+
+
+openArea : Area -> Model -> ( Model, Cmd Msg )
+openArea area model =
+    ( { model | tab = ListsTab, browse = BrowseArea area, composing = False, selectedId = Nothing }
+    , Cmd.none
+    )
+
+
+openList : String -> Model -> ( Model, Cmd Msg )
+openList name model =
+    ( { model | tab = ListsTab, browse = BrowseList name, composing = False, selectedId = Nothing }
+    , Cmd.none
+    )
+
+
+back : Model -> ( Model, Cmd Msg )
+back model =
+    case model.selectedId of
+        Just _ ->
+            ( { model | selectedId = Nothing, composing = False }
+            , Cmd.none
+            )
+
+        Nothing ->
+            ( { model | browse = BrowseRoot, composing = False }
+            , Cmd.none
+            )

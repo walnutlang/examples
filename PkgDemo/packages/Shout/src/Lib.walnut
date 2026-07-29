@@ -1,0 +1,9 @@
+module Shout.Lib exposing (exclaim)
+
+{-| In-app path package — the “vendored next to the app” pattern.
+-}
+
+
+exclaim : String -> String
+exclaim s =
+    s ++ "!"

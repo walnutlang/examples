@@ -1,0 +1,185 @@
+module Model.Types exposing (..)
+
+
+type Tab
+    = FeedbackTab
+    | LearnTab
+    | CommunityTab
+    | AccountTab
+    | AgencyTab
+
+
+type alias Profile =
+    { prediabetes : Bool
+    , type2 : Bool
+    , lipids : Bool
+    , hypertension : Bool
+    , glp1 : Bool
+    }
+
+
+type alias Lesson =
+    { id : String
+    , track : String
+    , title : String
+    , minutes : Int
+    , excerpt : String
+    , body : String
+    , coachId : String
+    , done : Bool
+    }
+
+
+type alias Commitment =
+    { id : String
+    , title : String
+    , detail : String
+    , kept : Bool
+    , symbol : String
+    , daily : Bool
+    }
+
+
+type alias DayMark =
+    { label : String
+    , mark : String
+    }
+
+
+type alias TrendPoint =
+    { label : String
+    , value : Int
+    }
+
+
+type alias TrendSeries =
+    { id : String
+    , title : String
+    , unit : String
+    , points : List TrendPoint
+    }
+
+
+type alias Vitals =
+    { steps : Int
+    , heartRate : Int
+    , glucose : Int
+    , bpSys : Int
+    , bpDia : Int
+    , weight : Int
+    , source : String
+    }
+
+
+type alias Coach =
+    { id : String
+    , name : String
+    , role : String
+    , specialty : String
+    , blurb : String
+    , initial : String
+    }
+
+
+type alias ChatLine =
+    { id : String
+    , fromMe : Bool
+    , body : String
+    }
+
+
+type alias Thread =
+    { coachId : String
+    , lines : List ChatLine
+    }
+
+
+type alias Circle =
+    { id : String
+    , name : String
+    , topic : String
+    , blurb : String
+    , members : Int
+    , activity : String
+    }
+
+
+type alias Reaction =
+    { emoji : String
+    , count : Int
+    , mine : Bool
+    }
+
+
+type alias Reply =
+    { id : String
+    , author : String
+    , initial : String
+    , photo : String
+    , body : String
+    , reactions : List Reaction
+    }
+
+
+type alias Post =
+    { id : String
+    , circleId : String
+    , author : String
+    , initial : String
+    , photo : String
+    , body : String
+    , reactions : List Reaction
+    , replies : List Reply
+    }
+
+
+type alias Note =
+    { id : String
+    , text : String
+    , status : String
+    , kind : String
+    , coachId : String
+    , commitmentId : String
+    , summary : String
+    }
+
+
+type alias Model =
+    { onboardingDone : Bool
+    , onboardingStep : Int
+    , tab : Tab
+    , profile : Profile
+    , vitals : Vitals
+    , trends : List TrendSeries
+    , lessons : List Lesson
+    , commitments : List Commitment
+    , coaches : List Coach
+    , threads : List Thread
+    , circles : List Circle
+    , joinedCircles : List String
+    , posts : List Post
+    , notes : List Note
+    , selectedLesson : Maybe String
+    , selectedCoach : Maybe String
+    , selectedCircle : Maybe String
+    , selectedPost : Maybe String
+    , learnSegment : Int
+    , forumSegment : Int
+    , forumQuery : String
+    , composeOpen : Bool
+    , leaveConfirmId : Maybe String
+    , reactionPicker : Maybe String
+    , communityDraft : String
+    , chatDraft : String
+    , replyDraft : String
+    , hkReady : Bool
+    , fitbitDemo : Bool
+    , fitbitConnected : Bool
+    , statusLine : String
+    , checkInOpen : Bool
+    , manualGlucose : String
+    , userName : String
+    , weekDays : List DayMark
+    , streakDays : Int
+    , logMenuOpen : Bool
+    }

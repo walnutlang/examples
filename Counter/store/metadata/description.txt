@@ -1,0 +1,11 @@
+Counter
+
+The smallest Walnut app that still looks like a real iPhone product.
+
+• Increment and decrement with liquid-glass controls
+• Reset when you want a clean slate
+• Community builds show Credits -- Commercial builds can ship without the splash
+
+Walnut compiles TEA programs (init / update / view) to native code. Counter is the one-minute proof: typecheck, Simulator, device, and TestFlight all use the same toolchain.
+
+Open it. Tap +. That’s the loop.

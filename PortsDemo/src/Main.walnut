@@ -1,0 +1,68 @@
+module Main exposing (main)
+
+import Cmd exposing (Cmd)
+import Port
+import Sub exposing (Sub)
+import Ui exposing (..)
+import Walnut
+
+
+-- MODEL
+
+type alias Model =
+    { echo : String }
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( { echo = "Tap Echo to Port.cmd \"echo\"" }, Cmd.none )
+
+
+-- UPDATE
+
+type Msg
+    = Echo
+    | GotEcho String
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        Echo ->
+            ( { model | echo = "Calling port…" }
+            , Port.cmd "echo" "hello" GotEcho
+            )
+
+        GotEcho reply ->
+            ( { model | echo = reply }, Cmd.none )
+
+
+-- SUBSCRIPTIONS
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.none
+
+
+-- VIEW
+
+view : Model -> View Msg
+view model =
+    column [ centerX, centerY, spacing 24, padding 32 ]
+        [ el [ fontSize 17, fontColor gray ] (text "PortsDemo")
+        , el [ fontSize 28, bold, centerX ] (text model.echo)
+        , button [ onTap Echo, glassProminent, fontSize 17, padding 14 ]
+            [ text "Echo via port" ]
+        ]
+
+
+-- PROGRAM
+
+main : Walnut.Program Model Msg
+main =
+    Walnut.element
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }

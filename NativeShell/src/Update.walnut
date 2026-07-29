@@ -1,0 +1,38 @@
+module Update exposing (Msg(..), update)
+
+import Types exposing (..)
+
+
+type Msg
+    = SetLit Bool
+    | SetVolume Float
+    | SetCount Int
+    | SetNote String
+    | SetDate Int
+    | SetSegment Int
+    | Bump
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        SetLit on ->
+            { model | lit = on }
+
+        SetVolume v ->
+            { model | volume = v }
+
+        SetCount n ->
+            { model | count = n }
+
+        SetNote s ->
+            { model | note = s }
+
+        SetDate ms ->
+            { model | pickedMs = ms }
+
+        SetSegment i ->
+            { model | segment = i }
+
+        Bump ->
+            { model | count = model.count + 1 }

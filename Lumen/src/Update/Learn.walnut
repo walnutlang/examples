@@ -1,0 +1,102 @@
+module Update.Learn exposing (update, deliverCoachMessage)
+
+import Cmd exposing (Cmd)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import Update.Persist exposing (persist)
+
+
+update : LearnMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        OpenLesson id ->
+            ( { model | selectedLesson = Just id, selectedCoach = Nothing }, Cmd.none )
+
+        CompleteLesson id ->
+            let
+                next =
+                    { model
+                        | lessons = List.map (complete id) model.lessons
+                        , selectedLesson = Nothing
+                    }
+            in
+            ( next, persist next )
+
+        SetLearnSegment n ->
+            ( { model | learnSegment = n, selectedLesson = Nothing, selectedCoach = Nothing }, Cmd.none )
+
+        OpenCoach id ->
+            ( { model | selectedCoach = Just id, selectedLesson = Nothing, chatDraft = "" }, Cmd.none )
+
+        ChatDraftChanged s ->
+            ( { model | chatDraft = s }, Cmd.none )
+
+        SendChat ->
+            case model.selectedCoach of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just coachId ->
+                    let
+                        body =
+                            String.trim model.chatDraft
+                    in
+                    if String.isEmpty body then
+                        ( model, Cmd.none )
+
+                    else
+                        ( deliverCoachMessage coachId body { model | chatDraft = "" }
+                        , Cmd.none
+                        )
+
+
+{-| Open a coach thread and append a user line + demo reply (Shortcuts / in-app).
+-}
+deliverCoachMessage : String -> String -> Model -> Model
+deliverCoachMessage coachId body model =
+    { model
+        | threads = appendChat coachId body model.threads
+        , selectedCoach = Just coachId
+        , selectedLesson = Nothing
+        , chatDraft = ""
+    }
+
+
+complete : String -> Lesson -> Lesson
+complete id lesson =
+    if lesson.id == id then
+        { lesson | done = True }
+
+    else
+        lesson
+
+
+appendChat : String -> String -> List Thread -> List Thread
+appendChat coachId body threads =
+    List.map (appendIf coachId body) threads
+
+
+appendIf : String -> String -> Thread -> Thread
+appendIf coachId body thread =
+    if thread.coachId == coachId then
+        { coachId = thread.coachId
+        , lines =
+            List.append thread.lines
+                [ { id = "u-" ++ String.fromInt (List.length thread.lines)
+                  , fromMe = True
+                  , body = body
+                  }
+                , { id = "c-" ++ String.fromInt (List.length thread.lines)
+                  , fromMe = False
+                  , body = autoReply body
+                  }
+                ]
+        }
+
+    else
+        thread
+
+
+autoReply : String -> String
+autoReply _ =
+    "Noted — thank you for sharing. Try one small experiment this week and tell me how it felt. (Demo coach reply.)"

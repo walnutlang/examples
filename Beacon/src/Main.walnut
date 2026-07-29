@@ -1,0 +1,129 @@
+module Main exposing (main)
+
+import Ui exposing (..)
+import Walnut
+
+
+-- MODEL
+
+type alias Model =
+    { lit : Bool }
+
+
+init : Model
+init =
+    { lit = False }
+
+
+-- UPDATE
+
+type Msg
+    = SetLit Bool
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        SetLit on ->
+            { model | lit = on }
+
+
+-- VIEW
+--
+-- Same UISwitch, four names:
+--   curated     switch
+--   platform    uiSwitch          (generated SDK list)
+--   app alias   switch2           (natives.json)
+--   escape      native "UISwitch"
+
+view : Model -> View Msg
+view model =
+    column
+        [ width fill
+        , height fill
+        , centerX
+        , centerY
+        , spacing 18
+        , padding 28
+        , bg (sky model.lit)
+        ]
+        [ el [ fontSize 13, semibold, fontColor (labelColor model.lit), textCenter ]
+            (text "NATIVE DEMO")
+        , el [ fontSize 32, bold, fontColor (labelColor model.lit), textCenter ]
+            (text (headline model.lit))
+        , uiActivityIndicatorView
+            [ propBool "animating" model.lit
+            , propInt "activityIndicatorViewStyle" 100
+            , tint (labelColor model.lit)
+            ]
+        , shapeRow "curated · switch" (labelColor model.lit)
+            (switch
+                [ propBool "on" model.lit
+                , onNativeBool "valueChanged" SetLit
+                ]
+            )
+        , shapeRow "platform · uiSwitch" (labelColor model.lit)
+            (uiSwitch
+                [ propBool "on" model.lit
+                , onNativeBool "valueChanged" SetLit
+                ]
+            )
+        , shapeRow "natives.json · switch2" (labelColor model.lit)
+            (switch2
+                [ propBool "on" model.lit
+                , onNativeBool "valueChanged" SetLit
+                ]
+            )
+        , shapeRow "escape · native \"UISwitch\"" (labelColor model.lit)
+            (native "UISwitch"
+                [ propBool "on" model.lit
+                , onNativeBool "valueChanged" SetLit
+                ]
+            )
+        ]
+
+
+shapeRow : String -> Color -> View Msg -> View Msg
+shapeRow label tintColor control =
+    column [ spacing 6, width fill ]
+        [ el [ fontSize 11, fontColor tintColor, textCenter ] (text label)
+        , row [ centerX ] [ control ]
+        ]
+
+
+headline : Bool -> String
+headline lit =
+    if lit then
+        "BEAM ON"
+
+    else
+        "standing by"
+
+
+sky : Bool -> Color
+sky lit =
+    if lit then
+        rgb255 255 196 72
+
+    else
+        rgb255 18 24 38
+
+
+labelColor : Bool -> Color
+labelColor lit =
+    if lit then
+        rgb255 40 28 8
+
+    else
+        rgb255 220 230 245
+
+
+-- PROGRAM
+
+main : Walnut.Program Model Msg
+main =
+    Walnut.sandbox
+        { init = init
+        , update = update
+        , view = view
+        }

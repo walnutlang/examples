@@ -1,0 +1,5 @@
+{
+  "bundleId": "dev.walnut.todo",
+  "name": "Todo",
+  "sources": "src"
+}

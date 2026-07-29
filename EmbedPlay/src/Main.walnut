@@ -1,0 +1,450 @@
+module Main exposing (main)
+
+{-| EmbedPlay — on-device semantic neighbors via MLX BGE Micro (`Port.cmd "mlx.rank"`).
+Device only (no Simulator MLX). See README.md.
+-}
+
+import Cmd exposing (Cmd)
+import List
+import Maybe
+import Port
+import String
+import Sub exposing (Sub)
+import Time
+import Ui exposing (..)
+import Walnut
+
+
+-- MODEL
+
+type alias Hit =
+    { score : Float
+    , text : String
+    }
+
+
+type alias Model =
+    { status : String
+    , query : String
+    , draft : String
+    , corpus : List String
+    , hits : List Hit
+    , busy : Bool
+    , note : String
+    }
+
+
+seedCorpus : List String
+seedCorpus =
+    [ "espresso shot and warm milk"
+    , "blizzard warning on the coast"
+    , "jazz trio in a tiny club"
+    , "debug a segfault at 2am"
+    , "fresh cilantro and lime"
+    , "quiet train through snow"
+    , "liquid glass on iPhone"
+    , "sourdough starter feeding"
+    ]
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( { status = "loading model…"
+      , query = "coffee in the morning"
+      , draft = ""
+      , corpus = seedCorpus
+      , hits = []
+      , busy = True
+      , note = "BGE Micro · TaylorAI/bge-micro-v2"
+      }
+    , Port.cmd "mlx.rank" "" GotStatus
+    )
+
+
+-- UPDATE
+
+type Msg
+    = GotStatus String
+    | GotRank String
+    | SetQuery String
+    | SetDraft String
+    | Rank
+    | AddDraft
+    | PickSeed String
+    | Tick Int
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        GotStatus reply ->
+            if reply == "READY" then
+                ( { model | status = "ready", busy = False, note = "model ready — tap Rank" }
+                , rankCmd model.query model.corpus
+                )
+
+            else if reply == "LOADING" then
+                ( { model | status = "loading…", busy = True, note = "downloading BGE Micro — tap Rank shortly" }
+                , Cmd.none
+                )
+
+            else if String.startsWith "ERR" reply then
+                ( { model | status = "error", busy = False, note = reply }
+                , Cmd.none
+                )
+
+            else
+                ( { model | status = reply, busy = False }
+                , Cmd.none
+                )
+
+        GotRank reply ->
+            if String.startsWith "LOADING" reply then
+                ( { model | busy = False, status = "loading…", note = "model still loading — try Rank again" }
+                , Cmd.none
+                )
+
+            else if String.startsWith "ERR" reply then
+                ( { model | busy = False, status = "error", note = reply, hits = [] }
+                , Cmd.none
+                )
+
+            else
+                ( { model
+                    | busy = False
+                    , status = "ready"
+                    , hits = parseHits reply
+                    , note = "cosine · higher = closer in embedding space"
+                  }
+                , Cmd.none
+                )
+
+        SetQuery q ->
+            ( { model | query = q }, Cmd.none )
+
+        SetDraft d ->
+            ( { model | draft = d }, Cmd.none )
+
+        Rank ->
+            ( { model | busy = True, note = "embedding…" }
+            , rankCmd model.query model.corpus
+            )
+
+        AddDraft ->
+            let
+                t = String.trim model.draft
+            in
+            if t == "" then
+                ( model, Cmd.none )
+
+            else
+                let
+                    next = { model | corpus = t :: model.corpus, draft = "", busy = True, note = "added — re-ranking…" }
+                in
+                ( next, rankCmd next.query next.corpus )
+
+        PickSeed s ->
+            ( { model | query = s, busy = True, note = "ranking…" }
+            , rankCmd s model.corpus
+            )
+
+        Tick _ ->
+            if model.status == "loading…" then
+                ( model, Port.cmd "mlx.rank" "" GotStatus )
+
+            else
+                ( model, Cmd.none )
+
+
+rankCmd : String -> List String -> Cmd Msg
+rankCmd query corpus =
+    Port.cmd "mlx.rank" (query ++ "\n---\n" ++ String.join "\n" corpus) GotRank
+
+
+parseHits : String -> List Hit
+parseHits reply =
+    let
+        lines = String.lines reply
+    in
+    case List.head lines of
+        Just first ->
+            if first == "OK" then
+                List.filterMap parseHitLine (List.drop 1 lines)
+
+            else
+                []
+
+        Nothing ->
+            []
+
+
+parseHitLine : String -> Maybe Hit
+parseHitLine line =
+    let
+        parts = String.split "\t" line
+    in
+    case List.head parts of
+        Just scoreStr ->
+            case String.toFloat scoreStr of
+                Just s ->
+                    Just
+                        { score = s
+                        , text = String.join "\t" (List.drop 1 parts)
+                        }
+
+                Nothing ->
+                    Nothing
+
+        Nothing ->
+            Nothing
+
+
+-- SUBSCRIPTIONS
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    if model.status == "loading…" then
+        Time.every 800 Tick
+
+    else
+        Sub.none
+
+
+-- VIEW
+
+ink : Color
+ink =
+    rgb255 18 22 28
+
+
+muted : Color
+muted =
+    rgb255 110 120 132
+
+
+canvas : Color
+canvas =
+    rgb255 244 247 250
+
+
+card : Color
+card =
+    rgb255 255 255 255
+
+
+accent : Color
+accent =
+    rgb255 16 148 132
+
+
+barTrack : Color
+barTrack =
+    rgb255 226 232 236
+
+
+view : Model -> View Msg
+view model =
+    scroll
+        [ width fill
+        , height fill
+        , bg canvas
+        , spacing 16
+        , paddingXY 20 28
+        ]
+        [ el [ fontSize 13, fontColor muted, serif ] (text "EMBEDPLAY")
+        , el [ fontSize 34, bold, fontColor ink, serif ] (text "Near meaning")
+        , el [ fontSize 15, fontColor muted ]
+            (text "Type a vibe. Rank against a tiny on-device corpus (MLX · BGE Micro).")
+        , statusChip model
+        , sectionLabel "Query"
+        , textField
+            [ onInput SetQuery
+            , content model.query
+            , placeholder "coffee in the morning"
+            , width fill
+            , padding 12
+            , bg card
+            , rounded 12
+            , border 1 barTrack
+            ]
+        , row [ width fill, spacing 10 ]
+            [ button
+                [ onTap Rank
+                , glassProminent
+                , paddingXY 18 12
+                , fontSize 16
+                ]
+                [ text (if model.busy then "…" else "Rank") ]
+            , el [ fontSize 13, fontColor muted, centerY ] (text model.note)
+            ]
+        , sectionLabel "Neighbors"
+        , hitsBlock model.hits
+        , sectionLabel "Add to corpus"
+        , textField
+            [ onInput SetDraft
+            , content model.draft
+            , placeholder "your phrase…"
+            , width fill
+            , padding 12
+            , bg card
+            , rounded 12
+            , border 1 barTrack
+            ]
+        , button
+            [ onTap AddDraft
+            , glass
+            , paddingXY 16 10
+            , fontSize 15
+            ]
+            [ text "Add & re-rank" ]
+        , sectionLabel "Seed queries"
+        , column [ spacing 8, width fill ]
+            (List.map seedChip
+                [ "coffee in the morning"
+                , "winter storm"
+                , "live music"
+                , "writing code late"
+                ]
+            )
+        , sectionLabel ("Corpus · " ++ String.fromInt (List.length model.corpus))
+        , column [ spacing 6, width fill ]
+            (List.map corpusLine model.corpus)
+        ]
+
+
+statusChip : Model -> View Msg
+statusChip model =
+    el
+        [ paddingXY 12 8
+        , rounded 999
+        , bg card
+        , border 1 barTrack
+        , fontSize 13
+        , fontColor ink
+        ]
+        (text ("status  " ++ model.status))
+
+
+sectionLabel : String -> View Msg
+sectionLabel t =
+    el [ fontSize 12, fontColor muted, bold ] (text (String.toUpper t))
+
+
+seedChip : String -> View Msg
+seedChip s =
+    button
+        [ onTap (PickSeed s)
+        , paddingXY 12 10
+        , bg card
+        , rounded 10
+        , border 1 barTrack
+        , width fill
+        , fontSize 14
+        , fontColor ink
+        ]
+        [ text s ]
+
+
+corpusLine : String -> View Msg
+corpusLine t =
+    el
+        [ paddingXY 12 10
+        , bg card
+        , rounded 10
+        , width fill
+        , fontSize 14
+        , fontColor ink
+        ]
+        (text t)
+
+
+hitsBlock : List Hit -> View Msg
+hitsBlock hits =
+    if List.isEmpty hits then
+        el
+            [ padding 16
+            , bg card
+            , rounded 14
+            , width fill
+            , fontSize 14
+            , fontColor muted
+            ]
+            (text "Ranks appear here after the model is ready.")
+
+    else
+        column [ spacing 8, width fill ]
+            (List.map hitRow hits)
+
+
+hitRow : Hit -> View Msg
+hitRow hit =
+    column
+        [ spacing 6
+        , padding 12
+        , bg card
+        , rounded 14
+        , width fill
+        , border 1 barTrack
+        ]
+        [ row [ width fill, centerY ]
+            [ el [ fontSize 15, fontColor ink, width fill ] (text hit.text)
+            , el [ fontSize 13, bold, fontColor accent ]
+                (text (scoreLabel hit.score))
+            ]
+        , row [ width fill, height (px 8), bg barTrack, rounded 4 ]
+            [ el
+                [ width (px (scoreBar hit.score))
+                , height (px 8)
+                , bg accent
+                , rounded 4
+                ]
+                (text "")
+            ]
+        ]
+
+
+scoreLabel : Float -> String
+scoreLabel s =
+    let
+        x = s + 0.0
+    in
+    String.left 4 (String.fromFloat (x * 100.0)) ++ "%"
+
+
+scoreBar : Float -> Int
+scoreBar s =
+    let
+        scaled = (s + 0.0) * 100.0
+    in
+    if scaled < 5.0 then
+        8
+    else if scaled < 15.0 then
+        40
+    else if scaled < 25.0 then
+        70
+    else if scaled < 35.0 then
+        100
+    else if scaled < 45.0 then
+        130
+    else if scaled < 55.0 then
+        160
+    else if scaled < 65.0 then
+        190
+    else if scaled < 75.0 then
+        220
+    else if scaled < 85.0 then
+        250
+    else
+        280
+
+
+-- PROGRAM
+
+main : Walnut.Program Model Msg
+main =
+    Walnut.element
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }

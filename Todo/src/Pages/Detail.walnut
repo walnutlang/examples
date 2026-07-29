@@ -1,0 +1,254 @@
+module Pages.Detail exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Index exposing (findItem)
+import Model.Query exposing (subtaskDoneCount, subtaskTotalCount)
+import Update.Msg exposing (..)
+import View.Layout exposing (iconWell)
+import View.Theme exposing (..)
+
+
+view : Model -> Int -> View Msg
+view model id =
+    case findItem id model of
+        Nothing ->
+            column [ width fill, height fill, bg canvas, padding 24 ]
+                [ el
+                    [ onTap (nav CloseTask)
+                    , paddingXY 0 8
+                    ]
+                    (el [ fontSize 16, fontColor accent ] (text "< Today"))
+                , el [ fontSize 18, fontColor inkSoft ] (text "Task not found.")
+                ]
+
+        Just item ->
+            detailBody item
+
+
+detailBody : Item -> View Msg
+detailBody item =
+    let
+        doneSubs =
+            subtaskDoneCount item.subtasks
+
+        totalSubs =
+            subtaskTotalCount item.subtasks
+    in
+    column [ width fill, height fill, bg canvas ]
+        [ scroll [ spacing 22, width fill, height fill, paddingXY 22 16 ]
+            [ navBar item
+            , titleRow item
+            , detailsCard item
+            , notesBlock item.notes
+            , subtasksBlock item.id item.subtasks doneSubs totalSubs
+            , el [ height (px 24) ] (text "")
+            ]
+        , completeBar item
+        ]
+
+
+navBar : Item -> View Msg
+navBar item =
+    row [ width fill, centerY ]
+        [ el
+            [ onTap (nav CloseTask)
+            , paddingXY 0 4
+            ]
+            (el [ fontSize 16, fontColor accent ] (text "< Today"))
+        , spacer
+        , el
+            [ onTap (tasks (ShareTask item.id))
+            , width (px 32)
+            , height (px 32)
+            , rounded 14
+            , centerX
+            ]
+            (icon [ tint inkSoft, fontSize 16 ] "square.and.arrow.up")
+        , el
+            [ width (px 32)
+            , height (px 32)
+            , rounded 14
+            , centerX
+            ]
+            (icon [ tint inkSoft, fontSize 16 ] "ellipsis")
+        ]
+
+
+titleRow : Item -> View Msg
+titleRow item =
+    row [ spacing 14, width fill, centerY ]
+        [ el
+            [ onTap (tasks (Toggle item.id))
+            , width (px 36)
+            , height (px 36)
+            , centerX
+            ]
+            (icon [ tint (checkColor item.done), fontSize 32 ] (checkIcon item.done))
+        , el [ fontSize 28, serif, fontColor ink, width fill ]
+            (text item.title)
+        ]
+
+
+detailsCard : Item -> View Msg
+detailsCard item =
+    column
+        [ width fill
+        , padding 4
+        , bg surface
+        , rounded 18
+        ]
+        [ detailRow "calendar" "Date" (dateLine item)
+        , hair
+        , detailRow "flag" "Priority" (priorityLabel item.priority)
+        , hair
+        , detailRow "folder" "List" item.listName
+        , hair
+        , detailRow "bell" "Reminder" (reminderLine item.reminder)
+        ]
+
+
+hair : View Msg
+hair =
+    el [ height (px 1), width fill, bg hairline ] (text "")
+
+
+detailRow : String -> String -> String -> View Msg
+detailRow symbol label value =
+    row [ spacing 12, width fill, paddingXY 14 14, centerY ]
+        [ iconWell chip inkSoft symbol
+        , column [ spacing 3, width fill ]
+            [ el [ fontSize 12, fontColor muted ] (text label)
+            , el [ fontSize 15, fontColor ink ] (text value)
+            ]
+        ]
+
+
+dateLine : Item -> String
+dateLine item =
+    if String.isEmpty item.timeLabel then
+        "Today"
+
+    else
+        "Today · " ++ item.timeLabel
+
+
+priorityLabel : Priority -> String
+priorityLabel p =
+    case p of
+        PriorityHigh ->
+            "High"
+
+        PriorityNone ->
+            "None"
+
+
+reminderLine : String -> String
+reminderLine reminder =
+    if String.isEmpty reminder then
+        "Off"
+
+    else
+        reminder
+
+
+notesBlock : String -> View Msg
+notesBlock notes =
+    if String.isEmpty notes then
+        none
+
+    else
+        column [ spacing 10, width fill ]
+            [ el [ fontSize 12, semibold, fontColor muted ] (text "NOTES")
+            , el [ fontSize 16, fontColor inkSoft ] (text notes)
+            ]
+
+
+subtasksBlock : Int -> List Subtask -> Int -> Int -> View Msg
+subtasksBlock taskId subs done total =
+    if List.isEmpty subs then
+        none
+
+    else
+        column [ spacing 8, width fill ]
+            [ row [ width fill, centerY ]
+                [ el [ fontSize 12, semibold, fontColor muted ] (text "SUBTASKS")
+                , spacer
+                , el [ fontSize 12, fontColor muted ]
+                    (text (String.fromInt done ++ " / " ++ String.fromInt total))
+                ]
+            , column [ width fill, bg surface, rounded 16 ]
+                (List.map (\sub -> subtaskRow taskId sub) subs)
+            ]
+
+
+subtaskRow : Int -> Subtask -> View Msg
+subtaskRow taskId sub =
+    row
+        [ spacing 12
+        , width fill
+        , paddingXY 14 14
+        , centerY
+        , onTap (tasks (ToggleSubtask taskId sub.title))
+        ]
+        [ el
+            [ width (px 28)
+            , height (px 28)
+            , centerX
+            ]
+            (icon [ tint (checkColor sub.done), fontSize 22 ] (checkIcon sub.done))
+        , el [ fontSize 16, fontColor (taskTitleColor sub.done), width fill ]
+            (text sub.title)
+        ]
+
+
+completeBar : Item -> View Msg
+completeBar item =
+    if item.done then
+        el [ height (px 24) ] (text "")
+
+    else
+        column [ width fill, paddingXY 22 16, bg canvas ]
+            [ button
+                [ onTap (tasks (MarkComplete item.id))
+                , width fill
+                , padding 16
+                , bg success
+                , rounded 18
+                , fontSize 17
+                , semibold
+                , fontColor white
+                ]
+                [ row [ spacing 8, centerX, width fill ]
+                    [ icon [ tint white, fontSize 16 ] "checkmark"
+                    , el [ fontColor white, semibold ] (text "Mark complete")
+                    ]
+                ]
+            ]
+
+
+checkIcon : Bool -> String
+checkIcon done =
+    if done then
+        "checkmark.circle.fill"
+
+    else
+        "circle"
+
+
+checkColor : Bool -> Color
+checkColor done =
+    if done then
+        success
+
+    else
+        accent
+
+
+taskTitleColor : Bool -> Color
+taskTitleColor done =
+    if done then
+        muted
+
+    else
+        ink

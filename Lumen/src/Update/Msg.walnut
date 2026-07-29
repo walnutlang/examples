@@ -1,0 +1,166 @@
+module Update.Msg exposing (..)
+
+import Model.Types exposing (..)
+
+
+type Msg
+    = Nav NavMsg
+    | Learn LearnMsg
+    | Community CommunityMsg
+    | Account AccountMsg
+    | Agency AgencyMsg
+    | Feedback FeedbackMsg
+    | Persist PersistMsg
+    | Health HealthMsg
+    | Intent IntentMsg
+
+
+type IntentMsg
+    = FromShortcut String
+    | GotTriage String
+
+
+type NavMsg
+    = SelectTab Tab
+    | CloseLesson
+    | CloseCoach
+    | CloseCircle
+    | ClosePost
+
+
+type LearnMsg
+    = OpenLesson String
+    | CompleteLesson String
+    | SetLearnSegment Int
+    | OpenCoach String
+    | ChatDraftChanged String
+    | SendChat
+
+
+type CommunityMsg
+    = OpenCircle String
+    | JoinCircle String
+    | AskLeaveCircle String
+    | ConfirmLeaveCircle
+    | CancelLeaveCircle
+    | LeaveCircle String
+    | SetForumSegment Int
+    | ForumQueryChanged String
+    | OpenCompose
+    | CloseCompose
+    | DraftChanged String
+    | PostReply
+    | OpenPost String
+    | OpenReactionPicker String
+    | CloseReactionPicker
+    | ReactPost String String
+    | ReactReply String String String
+    | ReplyDraftChanged String
+    | SendReply
+    | RefreshFeed
+
+
+type AccountMsg
+    = ToggleCommitment String
+    | OpenCheckIn
+    | CloseCheckIn
+    | ConfirmCheckIn
+    | RefreshWeek
+
+
+type AgencyMsg
+    = TogglePrediabetes
+    | ToggleType2
+    | ToggleLipids
+    | ToggleHypertension
+    | ToggleGlp1
+    | FinishOnboarding
+    | OnboardingNext
+    | OnboardingBack
+    | ToggleFitbitDemo
+    | ConnectFitbit
+    | DisconnectFitbit
+    | RequestHealthKit
+
+
+type FeedbackMsg
+    = RefreshVitals
+    | ManualGlucoseChanged String
+    | SaveManualGlucose
+    | ContinueHomeLesson
+    | OpenHomeCoach
+    | OpenLogMenu
+    | CloseLogMenu
+    | QuickNoteHint
+    | QuickWeightHint
+    | QuickGlucoseHint
+
+
+type PersistMsg
+    = GotPrefs (Maybe String)
+
+
+type HealthMsg
+    = GotHealthAuth String
+    | GotVitals String
+    | GotFitbit String
+
+
+nav : NavMsg -> Msg
+nav =
+    Nav
+
+
+learn : LearnMsg -> Msg
+learn =
+    Learn
+
+
+community : CommunityMsg -> Msg
+community =
+    Community
+
+
+account : AccountMsg -> Msg
+account =
+    Account
+
+
+agency : AgencyMsg -> Msg
+agency =
+    Agency
+
+
+feedback : FeedbackMsg -> Msg
+feedback =
+    Feedback
+
+
+onGotPrefs : Maybe String -> Msg
+onGotPrefs =
+    Persist << GotPrefs
+
+
+onHealthAuth : String -> Msg
+onHealthAuth =
+    Health << GotHealthAuth
+
+
+onVitals : String -> Msg
+onVitals =
+    Health << GotVitals
+
+
+onFitbit : String -> Msg
+onFitbit =
+    Health << GotFitbit
+
+
+onAppIntent : String -> Msg
+onAppIntent =
+    Intent << FromShortcut
+
+
+onTriage : String -> Msg
+onTriage =
+    Intent << GotTriage

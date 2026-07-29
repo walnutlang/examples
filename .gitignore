@@ -1,0 +1,9 @@
+.tmp/
+.build/
+**/.DS_Store
+**/*.xcodeproj/
+**/*.xcworkspace/
+**/.env
+**/*.p8
+**/ios/Generated/*.o
+**/ios/Generated/*.dylib

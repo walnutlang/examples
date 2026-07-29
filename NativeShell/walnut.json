@@ -1,0 +1,5 @@
+{
+  "bundleId": "dev.walnut.nativeshell",
+  "name": "NativeShell",
+  "sources": "src"
+}

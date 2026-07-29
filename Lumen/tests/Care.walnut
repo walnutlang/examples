@@ -1,0 +1,228 @@
+module Care exposing (main)
+
+{-| Care-plan gating, trends, and Progress helpers — lean fixture (no CoreData).
+-}
+
+import Model.Care as Care
+import Model.Types exposing (..)
+import Test exposing (..)
+
+
+emptyProfile : Profile
+emptyProfile =
+    { prediabetes = False
+    , type2 = False
+    , lipids = False
+    , hypertension = False
+    , glp1 = False
+    }
+
+
+fullProfile : Profile
+fullProfile =
+    { prediabetes = True
+    , type2 = True
+    , lipids = True
+    , hypertension = True
+    , glp1 = True
+    }
+
+
+bpProfile : Profile
+bpProfile =
+    { prediabetes = False
+    , type2 = False
+    , lipids = False
+    , hypertension = True
+    , glp1 = False
+    }
+
+
+type2Profile : Profile
+type2Profile =
+    { prediabetes = False
+    , type2 = True
+    , lipids = False
+    , hypertension = False
+    , glp1 = False
+    }
+
+
+lipidsProfile : Profile
+lipidsProfile =
+    { prediabetes = False
+    , type2 = False
+    , lipids = True
+    , hypertension = False
+    , glp1 = False
+    }
+
+
+glp1Only : Profile
+glp1Only =
+    { prediabetes = False
+    , type2 = False
+    , lipids = False
+    , hypertension = False
+    , glp1 = True
+    }
+
+
+stepsSeries : TrendSeries
+stepsSeries =
+    { id = "steps"
+    , title = "Steps"
+    , unit = "steps"
+    , points =
+        [ { label = "M", value = 5200 }
+        , { label = "T", value = 6100 }
+        , { label = "W", value = 6842 }
+        , { label = "T", value = 4300 }
+        , { label = "F", value = 7100 }
+        , { label = "S", value = 8900 }
+        , { label = "S", value = 6400 }
+        ]
+    }
+
+
+sampleTrends : List TrendSeries
+sampleTrends =
+    [ stepsSeries
+    , { id = "glucose", title = "Glucose", unit = "mg/dL", points = [ { label = "M", value = 118 }, { label = "T", value = 124 } ] }
+    , { id = "bp", title = "Systolic BP", unit = "mmHg", points = [ { label = "M", value = 122 }, { label = "T", value = 126 } ] }
+    , { id = "weight", title = "Weight", unit = "lb", points = [ { label = "M", value = 184 }, { label = "T", value = 182 } ] }
+    ]
+
+
+sampleCommitments : List Commitment
+sampleCommitments =
+    [ { id = "c1", title = "Walk", detail = "", kept = False, symbol = "figure.walk", daily = True }
+    , { id = "c2", title = "BP", detail = "", kept = False, symbol = "heart", daily = True }
+    , { id = "c3", title = "Protein", detail = "", kept = False, symbol = "fork.knife", daily = True }
+    ]
+
+
+sampleWeek : List DayMark
+sampleWeek =
+    [ { label = "M", mark = "kept" }
+    , { label = "T", mark = "kept" }
+    , { label = "W", mark = "today" }
+    , { label = "T", mark = "empty" }
+    , { label = "F", mark = "empty" }
+    , { label = "S", mark = "empty" }
+    , { label = "S", mark = "empty" }
+    ]
+
+
+modelWith : Profile -> Model
+modelWith profile =
+    { onboardingDone = True
+    , onboardingStep = 0
+    , tab = FeedbackTab
+    , profile = profile
+    , vitals =
+        { steps = 6842
+        , heartRate = 72
+        , glucose = 108
+        , bpSys = 118
+        , bpDia = 76
+        , weight = 182
+        , source = "Fitbit demo"
+        }
+    , trends = sampleTrends
+    , lessons = []
+    , commitments = sampleCommitments
+    , coaches = []
+    , threads = []
+    , circles = []
+    , joinedCircles = []
+    , posts = []
+    , notes = []
+    , selectedLesson = Nothing
+    , selectedCoach = Nothing
+    , selectedCircle = Nothing
+    , selectedPost = Nothing
+    , learnSegment = 0
+    , forumSegment = 0
+    , forumQuery = ""
+    , composeOpen = False
+    , leaveConfirmId = Nothing
+    , reactionPicker = Nothing
+    , communityDraft = ""
+    , chatDraft = ""
+    , replyDraft = ""
+    , hkReady = False
+    , fitbitDemo = True
+    , fitbitConnected = False
+    , statusLine = "ok"
+    , checkInOpen = False
+    , manualGlucose = ""
+    , userName = "You"
+    , weekDays = sampleWeek
+    , streakDays = 3
+    , logMenuOpen = False
+    }
+
+
+guest : Model
+guest =
+    modelWith fullProfile
+
+
+main =
+    format
+        (run
+            (describe "Lumen Care"
+                [ test "tracksGlucose is Type 2 or prediabetes"
+                    (true (Care.tracksGlucose type2Profile))
+                , test "tracksGlucose false for GLP-1 alone"
+                    (false (Care.tracksGlucose glp1Only))
+                , test "tracksBP follows hypertension"
+                    (true (Care.tracksBP bpProfile))
+                , test "planLabels lists active conditions"
+                    (equalInt 5 (List.length (Care.planLabels fullProfile)))
+                , test "planSummary empty plan"
+                    (equal "No conditions selected" (Care.planSummary emptyProfile))
+                , test "full plan shows all four trend series"
+                    (equalInt 4 (List.length (Care.visibleTrends guest)))
+                , test "empty plan shows steps only"
+                    (equalInt 1 (List.length (Care.visibleTrends (modelWith emptyProfile))))
+                , test "BP-only plan shows steps + bp"
+                    (equalInt 2 (List.length (Care.visibleTrends (modelWith bpProfile))))
+                , test "glucose-only plan shows steps + glucose"
+                    (equalInt 2 (List.length (Care.visibleTrends (modelWith type2Profile))))
+                , test "weight trends need lipids or GLP-1"
+                    (equalInt 2 (List.length (Care.visibleTrends (modelWith lipidsProfile))))
+                , test "trendMax walks a descending-after-peak list (foldl identity-acc)"
+                    (equalInt 8900 (Care.trendMax stepsSeries))
+                , test "trendMax on short series"
+                    (equalInt 124
+                        (Care.trendMax
+                            { id = "glucose"
+                            , title = "Glucose"
+                            , unit = "mg/dL"
+                            , points = [ { label = "M", value = 118 }, { label = "T", value = 124 } ]
+                            }
+                        )
+                    )
+                , test "barHeight scales to max"
+                    (equalInt 48 (Care.barHeight 100 100))
+                , test "barHeight floors to 4"
+                    (equalInt 4 (Care.barHeight 0 100))
+                , test "keptDayCount"
+                    (equalInt 2 (Care.keptDayCount guest))
+                , test "weekCaption mentions kept days"
+                    (equal "2 kept this week · on a 3-day run" (Care.weekCaption guest))
+                , test "full plan daily goals are three"
+                    (equalInt 3 (List.length (Care.visibleDailyGoals guest)))
+                , test "BP-only daily goals hide protein (c3)"
+                    (equalInt 2 (List.length (Care.visibleDailyGoals (modelWith bpProfile))))
+                , test "empty plan hides gated daily goals"
+                    (equalInt 0 (List.length (Care.visibleDailyGoals (modelWith emptyProfile))))
+                , test "greeting for calm BP"
+                    (equal "BP looks calm" (Care.greeting guest))
+                , test "default tab is Today (FeedbackTab)"
+                    (equal guest.tab FeedbackTab)
+                ]
+            )
+        )

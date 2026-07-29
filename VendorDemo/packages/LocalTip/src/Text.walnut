@@ -1,0 +1,9 @@
+module LocalTip.Text exposing (caption)
+
+{-| In-app path package for VendorDemo.
+-}
+
+
+caption : String
+caption =
+    "lock + vendor/walnut committed — offline install OK"

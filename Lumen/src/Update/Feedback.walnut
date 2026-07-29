@@ -1,0 +1,116 @@
+module Update.Feedback exposing (update)
+
+import Cmd exposing (Cmd)
+import Port
+import Model.Types exposing (..)
+import Model.Care as Care
+import Update.Msg exposing (..)
+
+
+update : FeedbackMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        RefreshVitals ->
+            ( { model | statusLine = "Refreshing…", logMenuOpen = False }
+            , if model.fitbitDemo || model.fitbitConnected then
+                Port.cmd "fitbit.sync"
+                    (if model.fitbitDemo then
+                        "demo"
+
+                     else
+                        "live"
+                    )
+                    onFitbit
+
+              else
+                Port.cmd "healthkit.query" "summary" onVitals
+            )
+
+        ManualGlucoseChanged s ->
+            ( { model | manualGlucose = s }, Cmd.none )
+
+        SaveManualGlucose ->
+            case String.toInt (String.trim model.manualGlucose) of
+                Just n ->
+                    let
+                        v =
+                            model.vitals
+                    in
+                    ( { model
+                        | vitals =
+                            { steps = v.steps
+                            , heartRate = v.heartRate
+                            , glucose = n
+                            , bpSys = v.bpSys
+                            , bpDia = v.bpDia
+                            , weight = v.weight
+                            , source = "Manual"
+                            }
+                        , manualGlucose = ""
+                        , statusLine = "Saved glucose " ++ String.fromInt n
+                      }
+                    , Cmd.none
+                    )
+
+                Nothing ->
+                    ( { model | statusLine = "Enter a whole number (mg/dL)" }, Cmd.none )
+
+        ContinueHomeLesson ->
+            case Care.homeLesson model of
+                Nothing ->
+                    ( { model | tab = LearnTab, statusLine = "Open Learn for your next lesson" }, Cmd.none )
+
+                Just lesson ->
+                    ( { model
+                        | tab = LearnTab
+                        , selectedLesson = Just lesson.id
+                        , selectedCoach = Nothing
+                      }
+                    , Cmd.none
+                    )
+
+        OpenHomeCoach ->
+            ( { model
+                | tab = LearnTab
+                , selectedCoach = Just (Care.primaryCoachId model.profile)
+                , selectedLesson = Nothing
+                , chatDraft = ""
+                , logMenuOpen = False
+              }
+            , Cmd.none
+            )
+
+        OpenLogMenu ->
+            ( { model | logMenuOpen = True }, Cmd.none )
+
+        CloseLogMenu ->
+            ( { model | logMenuOpen = False }, Cmd.none )
+
+        QuickNoteHint ->
+            ( { model
+                | logMenuOpen = False
+                , statusLine = "Say: Log my day in Lumen — notes sort on-device"
+              }
+            , Cmd.none
+            )
+
+        QuickWeightHint ->
+            if model.vitals.weight == 0 then
+                ( { model | logMenuOpen = False, statusLine = "Weight syncs from your plan source" }, Cmd.none )
+
+            else
+                ( { model
+                    | logMenuOpen = False
+                    , statusLine =
+                        "Latest weight · " ++ String.fromInt model.vitals.weight ++ " lb"
+                  }
+                , Cmd.none
+                )
+
+        QuickGlucoseHint ->
+            ( { model
+                | logMenuOpen = False
+                , statusLine = "Log glucose below, or sync from HealthKit"
+              }
+            , Cmd.none
+            )

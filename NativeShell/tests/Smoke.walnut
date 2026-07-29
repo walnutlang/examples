@@ -1,0 +1,26 @@
+module Smoke exposing (main)
+
+import Types exposing (..)
+import Update exposing (Msg(..), update)
+import Test exposing (..)
+
+
+main =
+    format
+        (run
+            (describe "NativeShell"
+                [ test "init lit"
+                    (equal init.lit True)
+                , test "SetLit"
+                    (equal (update (SetLit False) init).lit False)
+                , test "SetVolume"
+                    (equal (update (SetVolume 0.5) init).volume 0.5)
+                , test "Bump"
+                    (equalInt (update Bump init).count 4)
+                , test "SetNote"
+                    (equal (update (SetNote "hi") init).note "hi")
+                , test "SetSegment"
+                    (equalInt 2 (update (SetSegment 2) init).segment)
+                ]
+            )
+        )

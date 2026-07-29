@@ -1,0 +1,22 @@
+module Types exposing (..)
+
+
+type alias Model =
+    { lit : Bool
+    , volume : Float
+    , count : Int
+    , note : String
+    , pickedMs : Int
+    , segment : Int
+    }
+
+
+init : Model
+init =
+    { lit = True
+    , volume = 0.35
+    , count = 3
+    , note = "type here"
+    , pickedMs = 0
+    , segment = 0
+    }

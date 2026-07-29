@@ -1,0 +1,179 @@
+module Update.Agency exposing (update)
+
+import Cmd exposing (Cmd)
+import Port
+import Model.Types exposing (..)
+import Model.Care as Care
+import Update.Msg exposing (..)
+import Update.Persist exposing (persist)
+import Update.Health exposing (bootstrap)
+
+
+update : AgencyMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        TogglePrediabetes ->
+            persistProfile (setPrediabetes model (not model.profile.prediabetes))
+
+        ToggleType2 ->
+            persistProfile (setType2 model (not model.profile.type2))
+
+        ToggleLipids ->
+            persistProfile (setLipids model (not model.profile.lipids))
+
+        ToggleHypertension ->
+            persistProfile (setHypertension model (not model.profile.hypertension))
+
+        ToggleGlp1 ->
+            persistProfile (setGlp1 model (not model.profile.glp1))
+
+        OnboardingNext ->
+            ( { model | onboardingStep = model.onboardingStep + 1 }, Cmd.none )
+
+        OnboardingBack ->
+            let
+                prev =
+                    if model.onboardingStep <= 0 then
+                        0
+
+                    else
+                        model.onboardingStep - 1
+            in
+            ( { model | onboardingStep = prev }, Cmd.none )
+
+        FinishOnboarding ->
+            let
+                next =
+                    { model | onboardingDone = True, onboardingStep = 0 }
+            in
+            ( next, Cmd.batch [ persist next, bootstrap next ] )
+
+        ToggleFitbitDemo ->
+            let
+                next =
+                    { model | fitbitDemo = not model.fitbitDemo }
+            in
+            ( next
+            , Cmd.batch
+                [ persist next
+                , Port.cmd "fitbit.sync"
+                    (if next.fitbitDemo then
+                        "demo"
+
+                     else
+                        "live"
+                    )
+                    onFitbit
+                ]
+            )
+
+        ConnectFitbit ->
+            ( { model | statusLine = "Opening Fitbit…" }
+            , Port.cmd "fitbit.oauth.start" "" onFitbit
+            )
+
+        DisconnectFitbit ->
+            let
+                next =
+                    { model | fitbitConnected = False, statusLine = "Fitbit disconnected" }
+            in
+            ( next, Port.cmd "fitbit.disconnect" "" onFitbit )
+
+        RequestHealthKit ->
+            ( { model | statusLine = "Requesting HealthKit…" }
+            , Port.cmd "healthkit.authorize" (Care.healthKitTypes model.profile) onHealthAuth
+            )
+
+
+persistProfile : Model -> ( Model, Cmd Msg )
+persistProfile model =
+    let
+        next =
+            { model | statusLine = Care.planSummary model.profile }
+    in
+    ( next, persist next )
+
+
+setPrediabetes : Model -> Bool -> Model
+setPrediabetes model flag =
+    let
+        p =
+            model.profile
+    in
+    { model
+        | profile =
+            { prediabetes = flag
+            , type2 = p.type2
+            , lipids = p.lipids
+            , hypertension = p.hypertension
+            , glp1 = p.glp1
+            }
+    }
+
+
+setType2 : Model -> Bool -> Model
+setType2 model flag =
+    let
+        p =
+            model.profile
+    in
+    { model
+        | profile =
+            { prediabetes = p.prediabetes
+            , type2 = flag
+            , lipids = p.lipids
+            , hypertension = p.hypertension
+            , glp1 = p.glp1
+            }
+    }
+
+
+setLipids : Model -> Bool -> Model
+setLipids model flag =
+    let
+        p =
+            model.profile
+    in
+    { model
+        | profile =
+            { prediabetes = p.prediabetes
+            , type2 = p.type2
+            , lipids = flag
+            , hypertension = p.hypertension
+            , glp1 = p.glp1
+            }
+    }
+
+
+setHypertension : Model -> Bool -> Model
+setHypertension model flag =
+    let
+        p =
+            model.profile
+    in
+    { model
+        | profile =
+            { prediabetes = p.prediabetes
+            , type2 = p.type2
+            , lipids = p.lipids
+            , hypertension = flag
+            , glp1 = p.glp1
+            }
+    }
+
+
+setGlp1 : Model -> Bool -> Model
+setGlp1 model flag =
+    let
+        p =
+            model.profile
+    in
+    { model
+        | profile =
+            { prediabetes = p.prediabetes
+            , type2 = p.type2
+            , lipids = p.lipids
+            , hypertension = p.hypertension
+            , glp1 = flag
+            }
+    }

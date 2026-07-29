@@ -1,0 +1,212 @@
+module Update.Persist exposing (update, loadCmds, persist)
+
+import Cmd exposing (Cmd)
+import CoreData
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import Update.Health exposing (bootstrap)
+
+
+metaCollection : String
+metaCollection =
+    "lumen.profile.v3"
+
+
+prefsId : String
+prefsId =
+    "prefs"
+
+
+loadCmds : Cmd Msg
+loadCmds =
+    CoreData.get metaCollection prefsId onGotPrefs
+
+
+-- Prefer Model.Init.init which loads the same collection.
+
+
+persist : Model -> Cmd Msg
+persist model =
+    CoreData.put metaCollection prefsId (encodePrefs model)
+
+
+update : PersistMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        GotPrefs value ->
+            case value of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just text ->
+                    let
+                        m2 =
+                            applyPrefs text model
+                    in
+                    if m2.onboardingDone then
+                        ( m2, bootstrap m2 )
+
+                    else
+                        ( m2, Cmd.none )
+
+
+encodePrefs : Model -> String
+encodePrefs model =
+    String.join "\t"
+        [ boolFlag model.onboardingDone
+        , boolFlag model.profile.prediabetes
+        , boolFlag model.profile.type2
+        , boolFlag model.profile.lipids
+        , boolFlag model.profile.hypertension
+        , boolFlag model.profile.glp1
+        , boolFlag model.fitbitDemo
+        , encodeLessons model.lessons
+        , encodeCommitments model.commitments
+        , String.fromInt model.streakDays
+        ]
+
+
+applyPrefs : String -> Model -> Model
+applyPrefs text model =
+    applyPrefsParts (String.split "\t" text) model
+
+
+at : Int -> List String -> String
+at index parts =
+    case List.head (List.drop index parts) of
+        Nothing ->
+            ""
+
+        Just t ->
+            t
+
+
+applyPrefsParts : List String -> Model -> Model
+applyPrefsParts parts model =
+    if List.length parts < 7 then
+        model
+
+    else
+        let
+            rest =
+                List.drop 7 parts
+        in
+        { model
+            | onboardingDone = parseFlag (at 0 parts)
+            , profile =
+                { prediabetes = parseFlag (at 1 parts)
+                , type2 = parseFlag (at 2 parts)
+                , lipids = parseFlag (at 3 parts)
+                , hypertension = parseFlag (at 4 parts)
+                , glp1 = parseFlag (at 5 parts)
+                }
+            , fitbitDemo = parseFlag (at 6 parts)
+            , lessons = decodeLessons rest model.lessons
+            , commitments = decodeCommitments rest model.commitments
+            , streakDays = decodeStreak rest model.streakDays
+        }
+
+
+encodeLessons : List Lesson -> String
+encodeLessons lessons =
+    String.join ","
+        (List.map
+            (\l ->
+                if l.done then
+                    l.id
+
+                else
+                    ""
+            )
+            lessons
+        )
+
+
+encodeCommitments : List Commitment -> String
+encodeCommitments cs =
+    String.join ","
+        (List.map
+            (\c ->
+                if c.kept then
+                    c.id
+
+                else
+                    ""
+            )
+            cs
+        )
+
+
+decodeCommitments : List String -> List Commitment -> List Commitment
+decodeCommitments rest commitments =
+    case List.head (List.drop 1 rest) of
+        Nothing ->
+            commitments
+
+        Just keptIds ->
+            let
+                ids =
+                    String.split "," keptIds
+            in
+            List.map (markCommitmentKept ids) commitments
+
+
+markCommitmentKept : List String -> Commitment -> Commitment
+markCommitmentKept ids c =
+    if List.member c.id ids then
+        { c | kept = True }
+
+    else
+        c
+
+
+decodeStreak : List String -> Int -> Int
+decodeStreak rest fallback =
+    case List.head (List.drop 2 rest) of
+        Nothing ->
+            fallback
+
+        Just raw ->
+            case String.toInt raw of
+                Nothing ->
+                    fallback
+
+                Just n ->
+                    n
+
+
+decodeLessons : List String -> List Lesson -> List Lesson
+decodeLessons rest lessons =
+    case List.head rest of
+        Nothing ->
+            lessons
+
+        Just doneIds ->
+            let
+                ids =
+                    String.split "," doneIds
+            in
+            List.map (markLessonDone ids) lessons
+
+
+markLessonDone : List String -> Lesson -> Lesson
+markLessonDone ids lesson =
+    if List.member lesson.id ids then
+        { lesson | done = True }
+
+    else
+        lesson
+
+
+boolFlag : Bool -> String
+boolFlag b =
+    if b then
+        "1"
+
+    else
+        "0"
+
+
+parseFlag : String -> Bool
+parseFlag s =
+    s == "1"

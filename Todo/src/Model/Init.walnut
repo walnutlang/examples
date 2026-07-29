@@ -1,0 +1,91 @@
+module Model.Init exposing (init, seed, empty)
+
+import Cmd exposing (Cmd)
+import Dict
+import Model.Index exposing (withItems)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import Update.Persist exposing (loadCmds)
+
+
+init : ( Model, Cmd Msg )
+init =
+    ( empty
+    , loadCmds
+    )
+
+
+empty : Model
+empty =
+    withItems []
+        { authed = False
+        , tab = TodayTab
+        , browse = BrowseRoot
+        , segment = SegToday
+        , items = []
+        , itemsById = Dict.empty
+        , selectedId = Nothing
+        , draft = ""
+        , draftNote = ""
+        , draftList = "Personal"
+        , draftDate = "Today"
+        , draftTime = "2:00 PM"
+        , draftPriority = PriorityNone
+        , composePicker = Nothing
+        , nextId = 1
+        , nextSubId = 1
+        , composing = False
+        , pendingDelete = Nothing
+        , userName = "Ava"
+        }
+
+
+seed : Model
+seed =
+    withItems seedItems
+        { authed = True
+        , tab = TodayTab
+        , browse = BrowseRoot
+        , segment = SegToday
+        , items = []
+        , itemsById = Dict.empty
+        , selectedId = Nothing
+        , draft = ""
+        , draftNote = ""
+        , draftList = "Personal"
+        , draftDate = "Today"
+        , draftTime = "2:00 PM"
+        , draftPriority = PriorityNone
+        , composePicker = Nothing
+        , nextId = 9
+        , nextSubId = 1
+        , composing = False
+        , pendingDelete = Nothing
+        , userName = "Ava"
+        }
+
+
+seedItems : List Item
+seedItems =
+    [ Item 1
+        "Reply to Maya about the trip"
+        "Personal"
+        Today
+        Morning
+        "9:30"
+        PriorityHigh
+        "Confirm dates for Rome and ask about the packing list she mentioned last week."
+        [ Subtask "Check the calendar" True
+        , Subtask "Draft the message" False
+        , Subtask "Attach the packing list" False
+        ]
+        "30 min before"
+        False
+    , Item 2 "Deep-work block: ship the demo" "Work" Today Morning "11:00" PriorityHigh "" [] "" False
+    , Item 3 "Walk through Q3 deck with Maya" "Work" Today Afternoon "2:00" PriorityNone "" [] "" False
+    , Item 4 "Pack running shoes for Friday" "Home" Today Afternoon "" PriorityNone "" [] "" True
+    , Item 5 "Call the contractor about the roof" "Home" Today Evening "7:00" PriorityNone "" [] "" False
+    , Item 6 "Book the dentist" "Health" Upcoming Morning "10:00" PriorityNone "" [] "" False
+    , Item 7 "Compare lease vs buy for the EV" "Errands" Someday Afternoon "" PriorityNone "" [] "" False
+    , Item 8 "Inbox triage" "Personal" Inbox Morning "" PriorityNone "" [] "" False
+    ]

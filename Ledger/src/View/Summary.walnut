@@ -1,0 +1,33 @@
+module View.Summary exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Query exposing (..)
+import View.Theme exposing (..)
+
+
+view : Model -> View Msg
+view model =
+    column [ width fill, height fill, bg canvas, paddingXY 22 18, spacing 16 ]
+        [ el [ fontSize 12, semibold, fontColor muted ] (text "SUMMARY")
+        , el [ fontSize 28, serif, fontColor ink ] (text "This ledger")
+        , metric "Income" (formatDollars (incomeDollars model.entries)) income
+        , metric "Expenses" ("-" ++ formatDollars (expenseDollars model.entries)) expense
+        , metric "Balance" (formatSigned (balanceDollars model.entries)) accent
+        , el [ fontSize 13, fontColor muted ]
+            (text (String.fromInt (List.length model.entries) ++ " lines recorded"))
+        ]
+
+
+metric : String -> String -> Color -> View Msg
+metric label value tintColor =
+    column
+        [ width fill
+        , spacing 6
+        , padding 18
+        , bg surface
+        , rounded 18
+        ]
+        [ el [ fontSize 13, fontColor muted ] (text label)
+        , el [ fontSize 26, serif, fontColor tintColor ] (text value)
+        ]

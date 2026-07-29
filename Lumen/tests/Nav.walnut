@@ -1,0 +1,139 @@
+module Nav exposing (main)
+
+{-| Tab selection clears nested UI selections — Progress is AccountTab.
+Mirrors Update.Nav SelectTab without Tuple.first (host JIT has no wn_Tuple_first yet).
+-}
+
+import Model.Types exposing (..)
+import Test exposing (..)
+
+
+guest : Model
+guest =
+    { onboardingDone = True
+    , onboardingStep = 0
+    , tab = FeedbackTab
+    , profile =
+        { prediabetes = False
+        , type2 = False
+        , lipids = False
+        , hypertension = False
+        , glp1 = False
+        }
+    , vitals =
+        { steps = 0
+        , heartRate = 0
+        , glucose = 0
+        , bpSys = 0
+        , bpDia = 0
+        , weight = 0
+        , source = ""
+        }
+    , trends = []
+    , lessons = []
+    , commitments = []
+    , coaches = []
+    , threads = []
+    , circles = []
+    , joinedCircles = []
+    , posts = []
+    , notes = []
+    , selectedLesson = Just "lesson-1"
+    , selectedCoach = Just "coach-ava"
+    , selectedCircle = Just "circ-meta"
+    , selectedPost = Just "post-1"
+    , learnSegment = 0
+    , forumSegment = 0
+    , forumQuery = "bp"
+    , composeOpen = False
+    , leaveConfirmId = Nothing
+    , reactionPicker = Just "post-1"
+    , communityDraft = ""
+    , chatDraft = "hi"
+    , replyDraft = ""
+    , hkReady = False
+    , fitbitDemo = True
+    , fitbitConnected = False
+    , statusLine = "ok"
+    , checkInOpen = False
+    , manualGlucose = ""
+    , userName = "You"
+    , weekDays = []
+    , streakDays = 0
+    , logMenuOpen = False
+    }
+
+
+{-| Same field clears as `Update.Nav` `SelectTab`.
+-}
+selectTab : Tab -> Model -> Model
+selectTab tab model =
+    { model
+        | tab = tab
+        , selectedLesson = Nothing
+        , selectedCoach = Nothing
+        , selectedCircle = Nothing
+        , selectedPost = Nothing
+        , reactionPicker = Nothing
+    }
+
+
+progressModel : Model
+progressModel =
+    selectTab AccountTab guest
+
+
+learnModel : Model
+learnModel =
+    selectTab LearnTab guest
+
+
+planModel : Model
+planModel =
+    selectTab AgencyTab guest
+
+
+clearedAfterProgress : Bool
+clearedAfterProgress =
+    case progressModel.selectedLesson of
+        Just _ ->
+            False
+
+        Nothing ->
+            case progressModel.selectedCoach of
+                Just _ ->
+                    False
+
+                Nothing ->
+                    case progressModel.selectedCircle of
+                        Just _ ->
+                            False
+
+                        Nothing ->
+                            case progressModel.selectedPost of
+                                Just _ ->
+                                    False
+
+                                Nothing ->
+                                    True
+
+
+main =
+    format
+        (run
+            (describe "Lumen Nav"
+                [ test "SelectTab Progress (AccountTab)"
+                    (equal progressModel.tab AccountTab)
+                , test "SelectTab Plan (AgencyTab)"
+                    (equal planModel.tab AgencyTab)
+                , test "SelectTab clears lesson/coach/circle/post"
+                    (true clearedAfterProgress)
+                , test "SelectTab clears reaction picker"
+                    (equal learnModel.reactionPicker Nothing)
+                , test "guest starts on Today (FeedbackTab)"
+                    (equal guest.tab FeedbackTab)
+                , test "guest starts with nested selections set"
+                    (equal guest.selectedLesson (Just "lesson-1"))
+                ]
+            )
+        )

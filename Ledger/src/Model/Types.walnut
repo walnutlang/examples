@@ -1,0 +1,36 @@
+module Model.Types exposing (..)
+
+
+type Tab
+    = BooksTab
+    | SummaryTab
+
+
+type Flow
+    = In
+    | Out
+
+
+type alias Entry =
+    { id : Int
+    , date : String
+    , payee : String
+    , category : String
+    , amountDollars : Int
+    , flow : Flow
+    , note : String
+    }
+
+
+type alias Model =
+    { tab : Tab
+    , entries : List Entry
+    , selectedId : Maybe Int
+    , composing : Bool
+    , draftPayee : String
+    , draftCategory : String
+    , draftAmount : String
+    , draftNote : String
+    , nextId : Int
+    , businessName : String
+    }

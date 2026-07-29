@@ -1,0 +1,52 @@
+module Main exposing (main)
+
+import Greeter.Hello exposing (greet)
+import Shout.Lib exposing (exclaim)
+import Ui exposing (..)
+import Walnut
+
+
+type alias Model =
+    { name : String }
+
+
+init : Model
+init =
+    { name = "walnut" }
+
+
+type Msg
+    = SetName String
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        SetName n ->
+            { model | name = n }
+
+
+view : Model -> View Msg
+view model =
+    column [ centerX, centerY, spacing 20, padding 28 ]
+        [ el [ fontSize 13, fontColor gray ] (text "PKGDEMO")
+        , el [ fontSize 28, bold ] (text (exclaim (greet model.name)))
+        , textField
+            [ onInput SetName
+            , content model.name
+            , placeholder "name"
+            , padding 12
+            , width (px 220)
+            ]
+        , el [ fontSize 14, fontColor gray ]
+            (text "Greeter from registry · Shout from packages/")
+        ]
+
+
+main : Walnut.Program Model Msg
+main =
+    Walnut.sandbox
+        { init = init
+        , update = update
+        , view = view
+        }

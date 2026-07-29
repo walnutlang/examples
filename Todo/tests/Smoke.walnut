@@ -1,0 +1,68 @@
+module Smoke exposing (main)
+
+import Dict
+import Model.Index exposing (findItem, withItems)
+import Model.Types exposing (..)
+import Test exposing (..)
+
+
+-- Local guest fixture — avoids pulling Model.Init → Persist → CoreData into the JIT.
+
+
+guest : Model
+guest =
+    withItems []
+        { authed = False
+        , tab = TodayTab
+        , browse = BrowseRoot
+        , segment = SegToday
+        , items = []
+        , itemsById = Dict.empty
+        , selectedId = Nothing
+        , draft = ""
+        , draftNote = ""
+        , draftList = "Personal"
+        , draftDate = "Today"
+        , draftTime = "2:00 PM"
+        , draftPriority = PriorityNone
+        , composePicker = Nothing
+        , nextId = 1
+        , nextSubId = 1
+        , composing = False
+        , pendingDelete = Nothing
+        , userName = "Ava"
+        }
+
+
+sample : Model
+sample =
+    withItems
+        [ Item 7 "Deep link target" "Personal" Today Morning "" PriorityNone "" [] "" False ]
+        guest
+
+
+main =
+    format
+        (run
+            (describe "Todo model"
+                [ test "guest starts logged out"
+                    (false guest.authed)
+                , test "guest tab is Today"
+                    (equal guest.tab TodayTab)
+                , test "guest draft is blank"
+                    (equal guest.draft "")
+                , test "Dict index finds item"
+                    (equal (Just "Deep link target")
+                        (case findItem 7 sample of
+                            Just item ->
+                                Just item.title
+
+                            Nothing ->
+                                Nothing
+                        )
+                    )
+                , test "Subtask record ctor"
+                    (equal (Subtask "x" True).title "x")
+                ]
+            )
+        )

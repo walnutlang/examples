@@ -1,0 +1,12 @@
+name = "Lumen"
+bundle_id = "dev.walnut.lumen"
+sources = "src"
+
+[ios]
+marketing_version = "1.0"
+build_number = "1"
+uses_non_exempt_encryption = false
+
+[packages]
+vendor = true
+path = "vendor/walnut"

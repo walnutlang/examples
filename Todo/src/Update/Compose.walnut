@@ -1,0 +1,157 @@
+module Update.Compose exposing (update)
+
+import Cmd exposing (Cmd)
+import Notifications
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+
+
+update : ComposeMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        DraftChanged text ->
+            ( { model | draft = text }
+            , Cmd.none
+            )
+
+        DraftNoteChanged text ->
+            ( { model | draftNote = text }
+            , Cmd.none
+            )
+
+        ToggleDraftPriority ->
+            toggleDraftPriority model
+
+        SetDraftList name ->
+            ( { model | draftList = name, composePicker = Nothing }
+            , Cmd.none
+            )
+
+        SetDraftDate label ->
+            ( { model | draftDate = label, composePicker = Nothing }
+            , Cmd.none
+            )
+
+        SetDraftTime label ->
+            ( { model | draftTime = label, composePicker = Nothing }
+            , Cmd.none
+            )
+
+        ToggleDatePicker ->
+            ( { model | composePicker = togglePicker DatePicker model.composePicker }
+            , Cmd.none
+            )
+
+        ToggleListPicker ->
+            ( { model | composePicker = togglePicker ListPicker model.composePicker }
+            , Cmd.none
+            )
+
+        ToggleTimePicker ->
+            ( { model | composePicker = togglePicker TimePicker model.composePicker }
+            , Cmd.none
+            )
+
+        CloseComposePicker ->
+            ( { model | composePicker = Nothing }
+            , Cmd.none
+            )
+
+        StartCompose ->
+            ( { model
+                | composing = True
+                , draft = ""
+                , draftNote = ""
+                , draftPriority = PriorityNone
+                , draftList = "Personal"
+                , draftDate = "Today"
+                , draftTime = "2:00 PM"
+                , composePicker = Nothing
+                , selectedId = Nothing
+              }
+            , Notifications.requestPermission onPermission
+            )
+
+        CancelCompose ->
+            ( { model
+                | composing = False
+                , draft = ""
+                , draftNote = ""
+                , draftPriority = PriorityNone
+                , composePicker = Nothing
+              }
+            , Cmd.none
+            )
+
+        PermissionResult _ ->
+            ( model, Cmd.none )
+
+        PushReceived payload ->
+            ( { model | draft = payload, composing = True, composePicker = Nothing }
+            , Cmd.none
+            )
+
+
+togglePicker : ComposePicker -> Maybe ComposePicker -> Maybe ComposePicker
+togglePicker target current =
+    case current of
+        Nothing ->
+            Just target
+
+        Just open ->
+            if samePicker target open then
+                Nothing
+
+            else
+                Just target
+
+
+samePicker : ComposePicker -> ComposePicker -> Bool
+samePicker a b =
+    case a of
+        DatePicker ->
+            case b of
+                DatePicker ->
+                    True
+
+                ListPicker ->
+                    False
+
+                TimePicker ->
+                    False
+
+        ListPicker ->
+            case b of
+                ListPicker ->
+                    True
+
+                DatePicker ->
+                    False
+
+                TimePicker ->
+                    False
+
+        TimePicker ->
+            case b of
+                TimePicker ->
+                    True
+
+                DatePicker ->
+                    False
+
+                ListPicker ->
+                    False
+
+
+toggleDraftPriority : Model -> ( Model, Cmd Msg )
+toggleDraftPriority model =
+    case model.draftPriority of
+        PriorityNone ->
+            ( { model | draftPriority = PriorityHigh }
+            , Cmd.none
+            )
+
+        PriorityHigh ->
+            ( { model | draftPriority = PriorityNone }
+            , Cmd.none
+            )

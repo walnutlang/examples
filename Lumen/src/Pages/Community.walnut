@@ -1,0 +1,747 @@
+module Pages.Community exposing (directory, feed, postDetail)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+import View.Chrome exposing (..)
+
+
+reactionPalette : List String
+reactionPalette =
+    [ "👍", "❤️", "🙏", "💪", "😊" ]
+
+
+directory : Model -> View Msg
+directory model =
+    column [ width fill, height fill, bg canvas ]
+        [ scroll
+            [ spacing 16
+            , width fill
+            , height fill
+            , paddingXY 22 16
+            , scrollBottomInset 100
+            , onRefresh (community RefreshFeed)
+            ]
+            [ eyebrow "COMMUNITY"
+            , displayTitle "Forums"
+            , el [ fontSize 15, fontColor inkSoft ]
+                (text "Joined forums stay close. Discover and search the rest.")
+            , forumSegmentBar model
+            , directoryBody model
+            , el [ height (px 24) ] (text "")
+            ]
+        ]
+
+
+forumSegmentBar : Model -> View Msg
+forumSegmentBar model =
+    row
+        [ width fill
+        , padding 4
+        , bg chip
+        , rounded 16
+        ]
+        [ segmentChip (model.forumSegment == 0) "Joined" (community (SetForumSegment 0))
+        , segmentChip (model.forumSegment == 1) "Discover" (community (SetForumSegment 1))
+        ]
+
+
+directoryBody : Model -> View Msg
+directoryBody model =
+    if model.forumSegment == 1 then
+        column [ spacing 12, width fill ]
+            [ textField
+                [ key "forum-search"
+                , width fill
+                , height (px 48)
+                , padding 14
+                , bg surface
+                , rounded 14
+                , border 1 hairline
+                , content model.forumQuery
+                , placeholder "Search topics, names…"
+                , onInput (\s -> community (ForumQueryChanged s))
+                , fontSize 16
+                ]
+            , column [ spacing 12, width fill ]
+                (List.map (discoverCard model) (discoverForums model))
+            ]
+
+    else
+        let
+            forums =
+                joinedForums model
+        in
+        if List.length forums == 0 then
+            card []
+                [ el [ fontSize 16, fontColor inkSoft ]
+                    (text "No joined forums yet. Switch to Discover to find one.")
+                ]
+
+        else
+            column [ spacing 12, width fill ]
+                (List.map (joinedCard model) forums)
+
+
+joinedForums : Model -> List Circle
+joinedForums model =
+    List.filter (\c -> List.member c.id model.joinedCircles) model.circles
+
+
+discoverForums : Model -> List Circle
+discoverForums model =
+    let
+        notJoined =
+            List.filter (\c -> not (List.member c.id model.joinedCircles)) model.circles
+
+        q =
+            String.toLower (String.trim model.forumQuery)
+    in
+    if String.isEmpty q then
+        notJoined
+
+    else
+        List.filter
+            (\c ->
+                String.contains q (String.toLower c.name)
+                    || String.contains q (String.toLower c.topic)
+                    || String.contains q (String.toLower c.blurb)
+            )
+            notJoined
+
+
+joinedCard : Model -> Circle -> View Msg
+joinedCard model circle =
+    el
+        [ onTap (community (OpenCircle circle.id))
+        , width fill
+        ]
+        (card []
+            [ row [ width fill, centerY ]
+                [ column [ spacing 4, width fill ]
+                    [ el [ fontSize 18, serif, fontColor ink ] (text circle.name)
+                    , el [ fontSize 12, semibold, fontColor teal ] (text circle.topic)
+                    ]
+                , el [ fontSize 12, fontColor muted ] (text circle.activity)
+                ]
+            , el [ fontSize 14, fontColor inkSoft ] (text circle.blurb)
+            , row [ spacing 8, centerY, width fill ]
+                [ facePile (forumFaces model circle.id)
+                , spacer
+                , el [ fontSize 12, fontColor muted ]
+                    (text (String.fromInt circle.members ++ " members"))
+                ]
+            ]
+        )
+
+
+discoverCard : Model -> Circle -> View Msg
+discoverCard model circle =
+    card []
+        [ row [ width fill, centerY ]
+            [ column [ spacing 4, width fill ]
+                [ el [ fontSize 18, serif, fontColor ink ] (text circle.name)
+                , el [ fontSize 12, semibold, fontColor teal ] (text circle.topic)
+                ]
+            , el [ fontSize 12, fontColor muted ] (text circle.activity)
+            ]
+        , el [ fontSize 14, fontColor inkSoft ] (text circle.blurb)
+        , row [ spacing 8, centerY, width fill ]
+            [ facePile (forumFaces model circle.id)
+            , spacer
+            , el [ fontSize 12, fontColor muted ]
+                (text (String.fromInt circle.members ++ " members"))
+            ]
+        , button
+            [ onTap (community (JoinCircle circle.id))
+            , bg teal
+            , rounded 14
+            , padding 12
+            , width fill
+            ]
+            [ el [ fontSize 15, semibold, fontColor white, textCenter, width fill ] (text "Join") ]
+        ]
+
+
+forumFaces : Model -> String -> List String
+forumFaces model circleId =
+    List.filterMap
+        (\p ->
+            if p.circleId == circleId && not (String.isEmpty p.photo) then
+                Just p.photo
+
+            else
+                Nothing
+        )
+        model.posts
+
+
+facePile : List String -> View Msg
+facePile photos =
+    row [ spacing 4 ]
+        (List.map faceChip (takeUpTo 3 photos))
+
+
+faceChip : String -> View Msg
+faceChip photo =
+    el
+        [ width (px 28)
+        , height (px 28)
+        , rounded 14
+        , bg tealSoft
+        ]
+        (image [ width (px 28), height (px 28), rounded 14 ] photo)
+
+
+takeUpTo : Int -> List String -> List String
+takeUpTo n list =
+    if n <= 0 then
+        []
+
+    else
+        case List.head list of
+            Nothing ->
+                []
+
+            Just x ->
+                x :: takeUpTo (n - 1) (List.drop 1 list)
+
+
+feed : Model -> String -> View Msg
+feed model circleId =
+    case findCircle model circleId of
+        Nothing ->
+            column [ width fill, height fill, bg canvas, padding 22 ]
+                [ backBar "Forums" (nav CloseCircle)
+                , el [ fontSize 16, fontColor inkSoft ] (text "Forum missing")
+                ]
+
+        Just circle ->
+            column [ width fill, height fill, bg canvas ]
+                [ scroll
+                    [ spacing 16
+                    , width fill
+                    , height fill
+                    , paddingXY 22 16
+                    , scrollBottomInset 110
+                    , onRefresh (community RefreshFeed)
+                    ]
+                    [ backBar "Forums" (nav CloseCircle)
+                    , row [ width fill, centerY, spacing 10 ]
+                        [ column [ spacing 4, width fill ]
+                            [ el [ fontSize 12, semibold, fontColor teal ] (text circle.topic)
+                            , displayTitle circle.name
+                            ]
+                        , button
+                            [ onTap (community (AskLeaveCircle circle.id))
+                            , padding 6
+                            , width (px 36)
+                            , height (px 36)
+                            ]
+                            [ icon [ tint danger, fontSize 20 ] "rectangle.portrait.and.arrow.right" ]
+                        ]
+                    , el [ fontSize 15, fontColor inkSoft ] (text circle.blurb)
+                    , el [ fontSize 12, fontColor muted ]
+                        (text (String.fromInt circle.members ++ " members · " ++ circle.activity))
+                    , column [ spacing 12, width fill ]
+                        (List.map (postCard model) (circlePosts model circleId))
+                    , el [ height (px 24) ] (text "")
+                    ]
+                , composeChrome model
+                , leaveDialog model
+                , reactionPickerOverlay model
+                ]
+
+
+composeChrome : Model -> View Msg
+composeChrome model =
+    case model.selectedPost of
+        Just _ ->
+            none
+
+        Nothing ->
+            column [ width fill ]
+                [ composeFab
+                , composeSheet model
+                ]
+
+
+leaveDialog : Model -> View Msg
+leaveDialog model =
+    case model.leaveConfirmId of
+        Nothing ->
+            none
+
+        Just _ ->
+            dialog []
+                "Leave this forum?"
+                "You can rejoin anytime from Discover."
+                (community ConfirmLeaveCircle)
+                (community CancelLeaveCircle)
+
+
+composeFab : View Msg
+composeFab =
+    row
+        [ floatBottom
+        , key "forum-fab"
+        , width fill
+        , paddingXY 22 0
+        ]
+        [ spacer
+        , column [ spacing 0 ]
+            [ button
+                [ onTap (community OpenCompose)
+                , bg teal
+                , rounded 28
+                , padding 16
+                ]
+                [ icon [ tint white, fontSize 22 ] "plus" ]
+            , el [ height (px 88) ] (text "")
+            ]
+        ]
+
+
+composeSheet : Model -> View Msg
+composeSheet model =
+    if model.composeOpen then
+        sheet
+            [ key "forum-compose"
+            , propString "detent" "mediumLarge"
+            ]
+            (community CloseCompose)
+            (scroll
+                [ key "forum-compose-body"
+                , spacing 16
+                , paddingXY 20 16
+                , bg surface
+                , width fill
+                , height fill
+                ]
+                [ row [ width fill, centerY ]
+                    [ button
+                        [ onTap (community CloseCompose)
+                        , padding 6
+                        ]
+                        [ el [ fontSize 16, fontColor teal ] (text "Cancel") ]
+                    , spacer
+                    , el [ fontSize 15, semibold, fontColor ink ] (text "New post")
+                    , spacer
+                    , button
+                        [ onTap (community PostReply)
+                        , padding 8
+                        , rounded 12
+                        , bg teal
+                        ]
+                        [ el [ fontSize 15, semibold, fontColor white ] (text "Post") ]
+                    ]
+                , textField
+                    [ key "community-draft"
+                    , width fill
+                    , height (px 120)
+                    , padding 14
+                    , bg canvas
+                    , rounded 14
+                    , content model.communityDraft
+                    , placeholder "What’s on your mind?"
+                    , onInput (\s -> community (DraftChanged s))
+                    , fontSize 18
+                    , fontColor ink
+                    ]
+                , el [ fontSize 13, fontColor muted ]
+                    (text "Posts stay in this forum. Be kind — this is a coaching community demo.")
+                ]
+            )
+
+    else
+        none
+
+
+findCircle : Model -> String -> Maybe Circle
+findCircle model id =
+    List.head (List.filter (\c -> c.id == id) model.circles)
+
+
+circlePosts : Model -> String -> List Post
+circlePosts model circleId =
+    List.filter (\p -> p.circleId == circleId) model.posts
+
+
+postCard : Model -> Post -> View Msg
+postCard model post =
+    card []
+        [ el
+            [ onTap (community (OpenPost post.id))
+            , width fill
+            ]
+            (column [ spacing 10, width fill ]
+                [ row [ spacing 10, centerY ]
+                    [ faceAvatar post.photo post.initial
+                    , column [ spacing 2 ]
+                        [ el [ fontSize 15, semibold, fontColor ink ] (text post.author)
+                        , el [ fontSize 12, fontColor muted ]
+                            (text (String.fromInt (List.length post.replies) ++ " replies"))
+                        ]
+                    ]
+                , el [ fontSize 16, fontColor ink ] (text post.body)
+                ]
+            )
+        , reactionBar model ("p:" ++ post.id) post.reactions
+        ]
+
+
+reactionBar : Model -> String -> List Reaction -> View Msg
+reactionBar model targetId reactions =
+    let
+        active =
+            topReactions reactions
+
+        total =
+            reactionTotal reactions
+
+        mineAny =
+            List.length (List.filter (\r -> r.mine) reactions) > 0
+    in
+    row [ spacing 8, centerY, width fill ]
+        [ reactionCluster active
+        , if total > 0 then
+            el [ fontSize 13, fontColor muted ] (text (String.fromInt total))
+
+          else
+            el [] (text "")
+        , spacer
+        , button
+            [ onTap (community (OpenReactionPicker targetId))
+            , padding 6
+            , rounded 14
+            , bg
+                (if mineAny then
+                    tealSoft
+
+                 else
+                    rgba 0.0 0.0 0.0 0.0
+                )
+            ]
+            [ icon
+                [ tint
+                    (if mineAny then
+                        teal
+
+                     else
+                        muted
+                    )
+                , fontSize 18
+                ]
+                (if mineAny then
+                    "heart.fill"
+
+                 else
+                    "heart"
+                )
+            ]
+        ]
+
+
+reactionPickerOverlay : Model -> View Msg
+reactionPickerOverlay model =
+    case model.reactionPicker of
+        Nothing ->
+            none
+
+        Just targetId ->
+            overlay
+                [ fade
+                , onTap (community CloseReactionPicker)
+                ]
+                (pickerTray model targetId)
+
+
+pickerTray : Model -> String -> View Msg
+pickerTray model targetId =
+    case List.head (List.filter (\p -> ("p:" ++ p.id) == targetId) model.posts) of
+        Just post ->
+            reactionTray post.reactions (\emoji -> community (ReactPost post.id emoji))
+
+        Nothing ->
+            case findReplyTarget model targetId of
+                Nothing ->
+                    none
+
+                Just pair ->
+                    reactionTray pair.reactions (\emoji -> community (ReactReply pair.postId pair.replyId emoji))
+
+
+findReplyTarget : Model -> String -> Maybe { postId : String, replyId : String, reactions : List Reaction }
+findReplyTarget model targetId =
+    case List.head (List.filterMap (matchReplyTarget targetId) model.posts) of
+        Nothing ->
+            Nothing
+
+        Just hit ->
+            Just hit
+
+
+matchReplyTarget : String -> Post -> Maybe { postId : String, replyId : String, reactions : List Reaction }
+matchReplyTarget targetId post =
+    case List.head (List.filter (\r -> ("r:" ++ post.id ++ ":" ++ r.id) == targetId) post.replies) of
+        Nothing ->
+            Nothing
+
+        Just reply ->
+            Just { postId = post.id, replyId = reply.id, reactions = reply.reactions }
+
+
+reactionTray : List Reaction -> (String -> Msg) -> View Msg
+reactionTray reactions onPick =
+    row
+        [ spacing 4
+        , paddingXY 12 10
+        , bg surface
+        , rounded 28
+        , border 1 hairline
+        ]
+        (List.map (reactPickChip reactions onPick) reactionPalette)
+
+
+topReactions : List Reaction -> List Reaction
+topReactions reactions =
+    takeReactions 3 (sortByCountDesc (List.filter (\r -> r.count > 0) reactions))
+
+
+sortByCountDesc : List Reaction -> List Reaction
+sortByCountDesc list =
+    case List.head list of
+        Nothing ->
+            []
+
+        Just x ->
+            insertByCount x (sortByCountDesc (List.drop 1 list))
+
+
+insertByCount : Reaction -> List Reaction -> List Reaction
+insertByCount x list =
+    case List.head list of
+        Nothing ->
+            [ x ]
+
+        Just y ->
+            if x.count >= y.count then
+                x :: list
+
+            else
+                y :: insertByCount x (List.drop 1 list)
+
+
+takeReactions : Int -> List Reaction -> List Reaction
+takeReactions n list =
+    if n <= 0 then
+        []
+
+    else
+        case List.head list of
+            Nothing ->
+                []
+
+            Just x ->
+                x :: takeReactions (n - 1) (List.drop 1 list)
+
+
+reactionTotal : List Reaction -> Int
+reactionTotal reactions =
+    List.foldl (\r acc -> acc + r.count) 0 reactions
+
+
+reactionCluster : List Reaction -> View Msg
+reactionCluster active =
+    case List.head active of
+        Nothing ->
+            el [] (text "")
+
+        Just _ ->
+            row [ spacing (0 - 7), centerY ]
+                (List.map reactionBadge active)
+
+
+reactionBadge : Reaction -> View Msg
+reactionBadge reaction =
+    el
+        [ width (px 20)
+        , height (px 20)
+        , rounded 10
+        , bg (reactionColor reaction.emoji)
+        , border 2 white
+        , centerX
+        ]
+        (icon
+            [ tint white
+            , fontSize 10
+            ]
+            (reactionSymbol reaction.emoji)
+        )
+
+
+reactionSymbol : String -> String
+reactionSymbol emoji =
+    if emoji == "👍" then
+        "hand.thumbsup.fill"
+
+    else if emoji == "❤️" then
+        "heart.fill"
+
+    else if emoji == "🙏" then
+        "hands.sparkles.fill"
+
+    else if emoji == "💪" then
+        "figure.strengthtraining.traditional"
+
+    else
+        "face.smiling.fill"
+
+
+reactionColor : String -> Color
+reactionColor emoji =
+    if emoji == "👍" then
+        rgb255 24 119 242
+
+    else if emoji == "❤️" then
+        rgb255 243 62 88
+
+    else if emoji == "🙏" then
+        rgb255 247 177 37
+
+    else if emoji == "💪" then
+        rgb255 11 79 84
+
+    else
+        rgb255 247 177 37
+
+
+reactPickChip : List Reaction -> (String -> Msg) -> String -> View Msg
+reactPickChip reactions onPick emoji =
+    let
+        state =
+            reactionState emoji reactions
+    in
+    button
+        [ onTap (onPick emoji)
+        , padding 2
+        , rounded 6
+        , bg
+            (if state.mine then
+                tealSoft
+
+             else
+                rgba 0.0 0.0 0.0 0.0
+            )
+        ]
+        [ el
+            [ fontSize 22
+            , fontColor
+                (if state.mine then
+                    teal
+
+                 else
+                    ink
+                )
+            ]
+            (text emoji)
+        ]
+
+
+reactionState : String -> List Reaction -> { count : Int, mine : Bool }
+reactionState emoji reactions =
+    case List.head (List.filter (\r -> r.emoji == emoji) reactions) of
+        Nothing ->
+            { count = 0, mine = False }
+
+        Just r ->
+            { count = r.count, mine = r.mine }
+
+
+postDetail : Model -> String -> View Msg
+postDetail model id =
+    case List.head (List.filter (\p -> p.id == id) model.posts) of
+        Nothing ->
+            column [ width fill, height fill, bg canvas, padding 22 ]
+                [ backBar "Forum" (nav ClosePost)
+                , el [ fontSize 16, fontColor inkSoft ] (text "Post missing")
+                ]
+
+        Just post ->
+            column [ width fill, height fill, bg canvas ]
+                [ scroll
+                    [ spacing 14
+                    , width fill
+                    , height fill
+                    , paddingXY 22 16
+                    , scrollBottomInset 100
+                    ]
+                    ([ backBar "Forum" (nav ClosePost)
+                     , card []
+                        [ row [ spacing 10, centerY ]
+                            [ faceAvatar post.photo post.initial
+                            , el [ fontSize 16, semibold, fontColor ink ] (text post.author)
+                            ]
+                        , el [ fontSize 17, fontColor ink ] (text post.body)
+                        , reactionBar model ("p:" ++ post.id) post.reactions
+                        ]
+                     , el [ fontSize 13, semibold, fontColor muted ] (text "REPLIES")
+                     ]
+                        ++ List.map (replyRow model post.id) post.replies
+                        ++ [ el [ height (px 8) ] (text "") ]
+                    )
+                , column
+                    [ width fill
+                    , paddingXY 16 12
+                    , bg surface
+                    , border 1 hairline
+                    , spacing 8
+                    ]
+                    [ row [ spacing 10, centerY ]
+                        [ faceAvatar "" "Y"
+                        , textField
+                            [ key "reply"
+                            , width fill
+                            , height (px 48)
+                            , padding 14
+                            , bg canvas
+                            , rounded 14
+                            , content model.replyDraft
+                            , placeholder "Reply…"
+                            , onInput (\s -> community (ReplyDraftChanged s))
+                            , fontSize 16
+                            ]
+                        , button
+                            [ onTap (community SendReply)
+                            , bg teal
+                            , rounded 14
+                            , padding 14
+                            ]
+                            [ icon [ tint white, fontSize 16 ] "arrow.up" ]
+                        ]
+                    ]
+                , reactionPickerOverlay model
+                ]
+
+
+replyRow : Model -> String -> Reply -> View Msg
+replyRow model postId reply =
+    el
+        [ width fill
+        , padding 14
+        , bg surface
+        , rounded 14
+        , border 1 hairline
+        ]
+        (column [ spacing 8, width fill ]
+            [ row [ spacing 10, centerY, width fill ]
+                [ faceAvatar reply.photo reply.initial
+                , column [ spacing 4, width fill ]
+                    [ el [ fontSize 13, semibold, fontColor ink ] (text reply.author)
+                    , el [ fontSize 15, fontColor ink ] (text reply.body)
+                    ]
+                ]
+            , reactionBar model ("r:" ++ postId ++ ":" ++ reply.id) reply.reactions
+            ]
+        )

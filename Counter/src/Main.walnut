@@ -1,0 +1,65 @@
+module Main exposing (main, Model, Msg(..), init, update)
+
+import Ui exposing (..)
+import Walnut
+
+
+-- MODEL
+
+type alias Model =
+    { count : Int }
+
+
+init : Model
+init =
+    { count = 0 }
+
+
+-- UPDATE
+
+type Msg
+    = Increment
+    | Decrement
+    | Reset
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        Increment ->
+            { model | count = model.count + 1 }
+
+        Decrement ->
+            { model | count = model.count - 1 }
+
+        Reset ->
+            { model | count = 0 }
+
+
+-- VIEW
+
+view : Model -> View Msg
+view model =
+    column [ centerX, centerY, spacing 24, padding 32 ]
+        [ el [ fontSize 17, fontColor gray ] (text "Counter")
+        , el [ fontSize 64, bold, centerX ] (text (String.fromInt model.count))
+        , row [ spacing 12, centerX ]
+            [ button [ onTap Decrement, glass, fontSize 24, padding 12 ]
+                [ text "-" ]
+            , button [ onTap Increment, glassProminent, fontSize 24, padding 12 ]
+                [ text "+" ]
+            ]
+        , button [ onTap Reset, fontSize 15 ]
+            [ text "Reset" ]
+        ]
+
+
+-- PROGRAM
+
+main : Walnut.Program Model Msg
+main =
+    Walnut.sandbox
+        { init = init
+        , update = update
+        , view = view
+        }

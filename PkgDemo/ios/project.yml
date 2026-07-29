@@ -1,0 +1,38 @@
+# Generated for PkgDemo (package manager smoke). xcodegen -s ios/project.yml
+name: PkgDemo
+options:
+  deploymentTarget:
+    iOS: "16.0"
+packages:
+  Walnut:
+    path: __WALNUT_RUNTIME__
+targets:
+  PkgDemo:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Generated
+        includes:
+          - "*.json"
+        buildPhase: resources
+    dependencies:
+      - package: Walnut
+        product: WalnutUIKit
+      - package: Walnut
+        product: WalnutRT
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.walnut.pkgdemo
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: NO
+        OTHER_LDFLAGS: "$(inherited) $(SRCROOT)/Generated/Main.o"
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: PkgDemo
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight

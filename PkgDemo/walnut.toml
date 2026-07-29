@@ -1,0 +1,17 @@
+name = "PkgDemo"
+bundle_id = "dev.walnut.pkgdemo"
+sources = "src"
+
+[packages]
+vendor = true
+path = "vendor/walnut"
+
+[[source]]
+name = "walnut"
+url = "https://packages.walnutlang.com"
+
+[dependencies]
+# Registry → vendor/walnut/Greeter after install
+Greeter = "0.1.0"
+# In-app path package (already vendored beside the app)
+Shout = { path = "packages/Shout" }

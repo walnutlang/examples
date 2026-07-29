@@ -1,0 +1,337 @@
+module Update.Persist exposing (..)
+
+import Cmd exposing (Cmd)
+import CoreData
+import Model.Index exposing (withItems)
+import Model.Types exposing (..)
+import Model.Init exposing (seed)
+import Update.Msg exposing (..)
+
+
+itemsCollection : String
+itemsCollection =
+    "dovetail.items"
+
+
+metaCollection : String
+metaCollection =
+    "dovetail.meta"
+
+
+prefsId : String
+prefsId =
+    "prefs"
+
+
+andPersist : Model -> ( Model, Cmd Msg )
+andPersist model =
+    ( model, persist model )
+
+
+loadCmds : Cmd Msg
+loadCmds =
+    CoreData.get metaCollection prefsId onGotPrefs
+
+
+persist : Model -> Cmd Msg
+persist model =
+    Cmd.batch
+        (CoreData.put metaCollection prefsId (encodePrefs model)
+            :: List.map persistItem model.items
+        )
+
+
+persistItem : Item -> Cmd Msg
+persistItem item =
+    CoreData.put itemsCollection (String.fromInt item.id) (encodeItem item)
+
+
+deleteItem : Int -> Cmd Msg
+deleteItem id =
+    CoreData.delete itemsCollection (String.fromInt id)
+
+
+update : PersistMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        GotPrefs value ->
+            case value of
+                Nothing ->
+                    ( seed, persist seed )
+
+                Just text ->
+                    onGotPrefsPayload text model
+
+        GotItems payloads ->
+            ( applyItems payloads model, Cmd.none )
+
+
+onGotPrefsPayload : String -> Model -> ( Model, Cmd Msg )
+onGotPrefsPayload text model =
+    ( applyPrefs (Just text) model
+    , CoreData.fetchAll itemsCollection onGotItems
+    )
+
+
+encodePrefs : Model -> String
+encodePrefs model =
+    String.join "\t"
+        [ String.fromInt model.nextId
+        , boolFlag model.authed
+        , model.userName
+        ]
+
+
+encodeItem : Item -> String
+encodeItem item =
+    String.join "\t"
+        [ String.fromInt item.id
+        , item.title
+        , item.listName
+        , encodeArea item.area
+        , encodeSlot item.slot
+        , item.timeLabel
+        , encodePriority item.priority
+        , escape item.notes
+        , encodeSubtasks item.subtasks
+        , escape item.reminder
+        , boolFlag item.done
+        ]
+
+
+escape : String -> String
+escape s =
+    String.join " " (String.split "\t" s)
+
+
+encodeSlot : Slot -> String
+encodeSlot slot =
+    case slot of
+        Morning ->
+            "morning"
+
+        Afternoon ->
+            "afternoon"
+
+        Evening ->
+            "evening"
+
+
+encodePriority : Priority -> String
+encodePriority p =
+    case p of
+        PriorityNone ->
+            "none"
+
+        PriorityHigh ->
+            "high"
+
+
+encodeSubtasks : List Subtask -> String
+encodeSubtasks subs =
+    String.join ";" (List.map encodeSubtask subs)
+
+
+encodeSubtask : Subtask -> String
+encodeSubtask sub =
+    String.join "|"
+        [ escape sub.title
+        , boolFlag sub.done
+        ]
+
+
+encodeArea : Area -> String
+encodeArea area =
+    case area of
+        Inbox ->
+            "inbox"
+
+        Today ->
+            "today"
+
+        Upcoming ->
+            "upcoming"
+
+        Anytime ->
+            "anytime"
+
+        Someday ->
+            "someday"
+
+
+boolFlag : Bool -> String
+boolFlag value =
+    if value then
+        "1"
+
+    else
+        "0"
+
+
+parseBoolFlag : String -> Bool
+parseBoolFlag s =
+    s == "1"
+
+
+decodeArea : String -> Maybe Area
+decodeArea s =
+    if s == "inbox" then
+        Just Inbox
+
+    else if s == "today" then
+        Just Today
+
+    else if s == "upcoming" then
+        Just Upcoming
+
+    else if s == "anytime" then
+        Just Anytime
+
+    else if s == "someday" then
+        Just Someday
+
+    else
+        Nothing
+
+
+decodeSlot : String -> Slot
+decodeSlot s =
+    if s == "afternoon" then
+        Afternoon
+
+    else if s == "evening" then
+        Evening
+
+    else
+        Morning
+
+
+decodePriority : String -> Priority
+decodePriority s =
+    if s == "high" then
+        PriorityHigh
+
+    else
+        PriorityNone
+
+
+decodeSubtasks : String -> List Subtask
+decodeSubtasks text =
+    if String.isEmpty text then
+        []
+
+    else
+        List.filterMap decodeSubtask (String.split ";" text)
+
+
+decodeSubtask : String -> Maybe Subtask
+decodeSubtask text =
+    let
+        parts =
+            String.split "|" text
+    in
+    case List.head parts of
+        Nothing ->
+            Nothing
+
+        Just title ->
+            case List.head (List.drop 1 parts) of
+                Nothing ->
+                    Just (Subtask title False)
+
+                Just flag ->
+                    Just (Subtask title (parseBoolFlag flag))
+
+
+applyPrefs : Maybe String -> Model -> Model
+applyPrefs maybe model =
+    case maybe of
+        Nothing ->
+            model
+
+        Just text ->
+            applyPrefsParts (String.split "\t" text) model
+
+
+applyPrefsParts : List String -> Model -> Model
+applyPrefsParts parts model =
+    case List.head parts of
+        Nothing ->
+            model
+
+        Just nextIdText ->
+            let
+                withNext =
+                    case String.toInt nextIdText of
+                        Nothing ->
+                            model
+
+                        Just n ->
+                            { model | nextId = n }
+
+                authedText =
+                    case List.head (List.drop 1 parts) of
+                        Nothing ->
+                            "0"
+
+                        Just t ->
+                            t
+
+                nameText =
+                    case List.head (List.drop 2 parts) of
+                        Nothing ->
+                            "Ava"
+
+                        Just t ->
+                            t
+            in
+            { withNext
+                | authed = parseBoolFlag authedText
+                , userName = nameText
+            }
+
+
+partAt : Int -> List String -> String
+partAt index parts =
+    case List.head (List.drop index parts) of
+        Nothing ->
+            ""
+
+        Just t ->
+            t
+
+
+decodeItem : String -> Maybe Item
+decodeItem text =
+    let
+        parts =
+            String.split "\t" text
+    in
+    case String.toInt (partAt 0 parts) of
+        Nothing ->
+            Nothing
+
+        Just id ->
+            case decodeArea (partAt 3 parts) of
+                Nothing ->
+                    Nothing
+
+                Just area ->
+                    Just
+                        (Item id
+                            (partAt 1 parts)
+                            (partAt 2 parts)
+                            area
+                            (decodeSlot (partAt 4 parts))
+                            (partAt 5 parts)
+                            (decodePriority (partAt 6 parts))
+                            (partAt 7 parts)
+                            (decodeSubtasks (partAt 8 parts))
+                            (partAt 9 parts)
+                            (parseBoolFlag (partAt 10 parts))
+                        )
+
+
+applyItems : List String -> Model -> Model
+applyItems payloads model =
+    withItems (List.filterMap decodeItem payloads) model

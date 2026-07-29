@@ -1,0 +1,91 @@
+module Model.Types exposing (..)
+
+import Dict exposing (Dict)
+
+
+type Area
+    = Inbox
+    | Today
+    | Upcoming
+    | Anytime
+    | Someday
+
+
+type Tab
+    = TodayTab
+    | CalendarTab
+    | ListsTab
+    | SettingsTab
+
+
+type BrowseFocus
+    = BrowseRoot
+    | BrowseArea Area
+    | BrowseList String
+
+
+type Segment
+    = SegToday
+    | SegUpcoming
+    | SegAll
+
+
+type Slot
+    = Morning
+    | Afternoon
+    | Evening
+
+
+type Priority
+    = PriorityNone
+    | PriorityHigh
+
+
+type ComposePicker
+    = DatePicker
+    | ListPicker
+    | TimePicker
+
+
+type alias Subtask =
+    { title : String
+    , done : Bool
+    }
+
+
+type alias Item =
+    { id : Int
+    , title : String
+    , listName : String
+    , area : Area
+    , slot : Slot
+    , timeLabel : String
+    , priority : Priority
+    , notes : String
+    , subtasks : List Subtask
+    , reminder : String
+    , done : Bool
+    }
+
+
+type alias Model =
+    { authed : Bool
+    , tab : Tab
+    , browse : BrowseFocus
+    , segment : Segment
+    , items : List Item
+    , itemsById : Dict Int Item
+    , selectedId : Maybe Int
+    , draft : String
+    , draftNote : String
+    , draftList : String
+    , draftDate : String
+    , draftTime : String
+    , draftPriority : Priority
+    , composePicker : Maybe ComposePicker
+    , nextId : Int
+    , nextSubId : Int
+    , composing : Bool
+    , pendingDelete : Maybe Int
+    , userName : String
+    }

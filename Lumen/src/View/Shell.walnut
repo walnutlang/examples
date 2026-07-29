@@ -1,0 +1,223 @@
+module View.Shell exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import View.Theme exposing (canvas)
+import Pages.Onboarding
+import Pages.Today
+import Pages.Learn
+import Pages.Community
+import Pages.Account
+import Pages.Agency
+
+
+view : Model -> View Msg
+view model =
+    if model.onboardingDone then
+        column
+            [ width fill
+            , height fill
+            , bg canvas
+            ]
+            [ pageBody model ]
+
+    else
+        Pages.Onboarding.view model
+
+
+pageBody : Model -> View Msg
+pageBody model =
+    tabBar
+        [ key "lumen-tabs"
+        , width fill
+        , height fill
+        , propInt "selected" (tabIndex model.tab)
+        ]
+        (\i -> nav (SelectTab (tabFromIndex i)))
+        [ feedbackStack model
+        , learnStack model
+        , communityStack model
+        , accountStack model
+        , agencyStack model
+        ]
+
+
+feedbackStack : Model -> View Msg
+feedbackStack model =
+    navStack
+        [ key "feedback-nav"
+        , content "Today"
+        , propString "systemImage" "heart.text.square"
+        , width fill
+        , height fill
+        ]
+        (nav CloseLesson)
+        [ el [ key "feedback-root", width fill, height fill ]
+            (Pages.Today.view model)
+        ]
+
+
+learnStack : Model -> View Msg
+learnStack model =
+    navStack
+        [ key "learn-nav"
+        , content "Learn"
+        , propString "systemImage" "book"
+        , width fill
+        , height fill
+        ]
+        (learnBack model)
+        (learnPages model)
+
+
+learnBack : Model -> Msg
+learnBack model =
+    case model.selectedCoach of
+        Just _ ->
+            nav CloseCoach
+
+        Nothing ->
+            nav CloseLesson
+
+
+learnPages : Model -> List (View Msg)
+learnPages model =
+    case model.selectedCoach of
+        Just id ->
+            [ el [ key "learn-root", width fill, height fill ]
+                (Pages.Learn.catalog model)
+            , el [ key ("coach-" ++ id), width fill, height fill ]
+                (Pages.Learn.coachChat model id)
+            ]
+
+        Nothing ->
+            case model.selectedLesson of
+                Just id ->
+                    [ el [ key "learn-root", width fill, height fill ]
+                        (Pages.Learn.catalog model)
+                    , el [ key ("lesson-" ++ id), width fill, height fill ]
+                        (Pages.Learn.lessonDetail model id)
+                    ]
+
+                Nothing ->
+                    [ el [ key "learn-root", width fill, height fill ]
+                        (Pages.Learn.catalog model)
+                    ]
+
+
+communityStack : Model -> View Msg
+communityStack model =
+    navStack
+        [ key "community-nav"
+        , content "Circle"
+        , propString "systemImage" "person.3"
+        , width fill
+        , height fill
+        ]
+        (communityBack model)
+        (communityPages model)
+
+
+communityBack : Model -> Msg
+communityBack model =
+    case model.selectedPost of
+        Just _ ->
+            nav ClosePost
+
+        Nothing ->
+            nav CloseCircle
+
+
+communityPages : Model -> List (View Msg)
+communityPages model =
+    case model.selectedCircle of
+        Nothing ->
+            [ el [ key "community-root", width fill, height fill ]
+                (Pages.Community.directory model)
+            ]
+
+        Just circleId ->
+            case model.selectedPost of
+                Just postId ->
+                    [ el [ key "community-root", width fill, height fill ]
+                        (Pages.Community.directory model)
+                    , el [ key ("circle-" ++ circleId), width fill, height fill ]
+                        (Pages.Community.feed model circleId)
+                    , el [ key ("post-" ++ postId), width fill, height fill ]
+                        (Pages.Community.postDetail model postId)
+                    ]
+
+                Nothing ->
+                    [ el [ key "community-root", width fill, height fill ]
+                        (Pages.Community.directory model)
+                    , el [ key ("circle-" ++ circleId), width fill, height fill ]
+                        (Pages.Community.feed model circleId)
+                    ]
+
+
+accountStack : Model -> View Msg
+accountStack model =
+    navStack
+        [ key "account-nav"
+        , content "Progress"
+        , propString "systemImage" "chart.line.uptrend.xyaxis"
+        , width fill
+        , height fill
+        ]
+        (nav CloseLesson)
+        [ el [ key "account-root", width fill, height fill ]
+            (Pages.Account.view model)
+        ]
+
+
+agencyStack : Model -> View Msg
+agencyStack model =
+    navStack
+        [ key "agency-nav"
+        , content "Plan"
+        , propString "systemImage" "slider.horizontal.3"
+        , width fill
+        , height fill
+        ]
+        (nav CloseLesson)
+        [ el [ key "agency-root", width fill, height fill ]
+            (Pages.Agency.view model)
+        ]
+
+
+tabIndex : Tab -> Int
+tabIndex tab =
+    case tab of
+        FeedbackTab ->
+            0
+
+        LearnTab ->
+            1
+
+        CommunityTab ->
+            2
+
+        AccountTab ->
+            3
+
+        AgencyTab ->
+            4
+
+
+tabFromIndex : Int -> Tab
+tabFromIndex i =
+    if i == 1 then
+        LearnTab
+
+    else if i == 2 then
+        CommunityTab
+
+    else if i == 3 then
+        AccountTab
+
+    else if i == 4 then
+        AgencyTab
+
+    else
+        FeedbackTab

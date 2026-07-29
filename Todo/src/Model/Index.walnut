@@ -1,0 +1,22 @@
+module Model.Index exposing (indexItems, withItems, findItem)
+
+{-| Dict-backed item index — O(1) lookup by id without scanning `model.items`.
+-}
+
+import Dict exposing (Dict)
+import Model.Types exposing (..)
+
+
+indexItems : List Item -> Dict Int Item
+indexItems items =
+    List.foldl (\item dict -> Dict.insert item.id item dict) Dict.empty items
+
+
+withItems : List Item -> Model -> Model
+withItems items model =
+    { model | items = items, itemsById = indexItems items }
+
+
+findItem : Int -> Model -> Maybe Item
+findItem id model =
+    Dict.get id model.itemsById

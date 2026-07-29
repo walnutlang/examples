@@ -1,0 +1,15 @@
+module Main exposing (main)
+
+import Walnut
+import Types exposing (..)
+import Update exposing (Msg, update)
+import View exposing (view)
+
+
+main : Walnut.Program Model Msg
+main =
+    Walnut.sandbox
+        { init = init
+        , update = update
+        , view = view
+        }

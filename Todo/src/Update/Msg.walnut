@@ -1,0 +1,128 @@
+module Update.Msg exposing (..)
+
+import Model.Types exposing (..)
+
+
+type Msg
+    = Auth AuthMsg
+    | Nav NavMsg
+    | Compose ComposeMsg
+    | Tasks TasksMsg
+    | Persist PersistMsg
+
+
+type AuthMsg
+    = GetStarted
+    | SignIn
+
+
+type NavMsg
+    = SelectTab Tab
+    | BrowseOpenArea Area
+    | BrowseOpenList String
+    | BrowseBack
+    | SetSegment Segment
+    | OpenTask Int
+    | CloseTask
+    | DeepLink String
+
+
+type ComposeMsg
+    = DraftChanged String
+    | DraftNoteChanged String
+    | ToggleDraftPriority
+    | SetDraftList String
+    | SetDraftDate String
+    | SetDraftTime String
+    | ToggleDatePicker
+    | ToggleListPicker
+    | ToggleTimePicker
+    | CloseComposePicker
+    | StartCompose
+    | CancelCompose
+    | PermissionResult Bool
+    | PushReceived String
+
+
+type TasksMsg
+    = Add
+    | Toggle Int
+    | ToggleSubtask Int String
+    | MarkComplete Int
+    | RequestDelete Int
+    | ConfirmDelete
+    | CancelDelete
+    | ShareTask Int
+    | ShareDone String
+
+
+type PersistMsg
+    = GotPrefs (Maybe String)
+    | GotItems (List String)
+
+
+-- View / effect tagging helpers (flat call sites at the edges).
+
+auth : AuthMsg -> Msg
+auth =
+    Auth
+
+
+nav : NavMsg -> Msg
+nav =
+    Nav
+
+
+compose : ComposeMsg -> Msg
+compose =
+    Compose
+
+
+tasks : TasksMsg -> Msg
+tasks =
+    Tasks
+
+
+persistMsg : PersistMsg -> Msg
+persistMsg =
+    Persist
+
+
+onDraft : String -> Msg
+onDraft text =
+    Compose (DraftChanged text)
+
+
+onDraftNote : String -> Msg
+onDraftNote text =
+    Compose (DraftNoteChanged text)
+
+
+onPermission : Bool -> Msg
+onPermission granted =
+    Compose (PermissionResult granted)
+
+
+onPush : String -> Msg
+onPush payload =
+    Compose (PushReceived payload)
+
+
+onDeepLink : String -> Msg
+onDeepLink url =
+    Nav (DeepLink url)
+
+
+shareDone : String -> Msg
+shareDone reply =
+    Tasks (ShareDone reply)
+
+
+onGotPrefs : Maybe String -> Msg
+onGotPrefs value =
+    Persist (GotPrefs value)
+
+
+onGotItems : List String -> Msg
+onGotItems payloads =
+    Persist (GotItems payloads)

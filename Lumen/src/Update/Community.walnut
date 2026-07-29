@@ -1,0 +1,286 @@
+module Update.Community exposing (update)
+
+import Cmd exposing (Cmd)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+
+
+update : CommunityMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        OpenCircle id ->
+            ( { model | selectedCircle = Just id, selectedPost = Nothing, composeOpen = False }, Cmd.none )
+
+        JoinCircle id ->
+            ( { model
+                | joinedCircles = addUnique id model.joinedCircles
+                , selectedCircle = Just id
+                , selectedPost = Nothing
+                , forumSegment = 0
+                , composeOpen = False
+              }
+            , Cmd.none
+            )
+
+        LeaveCircle id ->
+            ( { model
+                | joinedCircles = List.filter (\x -> x /= id) model.joinedCircles
+                , selectedCircle =
+                    if model.selectedCircle == Just id then
+                        Nothing
+
+                    else
+                        model.selectedCircle
+                , composeOpen = False
+                , leaveConfirmId = Nothing
+                , reactionPicker = Nothing
+              }
+            , Cmd.none
+            )
+
+        AskLeaveCircle id ->
+            ( { model | leaveConfirmId = Just id }, Cmd.none )
+
+        ConfirmLeaveCircle ->
+            case model.leaveConfirmId of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just id ->
+                    update (LeaveCircle id) model
+
+        CancelLeaveCircle ->
+            ( { model | leaveConfirmId = Nothing }, Cmd.none )
+
+        SetForumSegment n ->
+            ( { model | forumSegment = n, forumQuery = "" }, Cmd.none )
+
+        ForumQueryChanged s ->
+            ( { model | forumQuery = s }, Cmd.none )
+
+        OpenCompose ->
+            ( { model | composeOpen = True }, Cmd.none )
+
+        CloseCompose ->
+            ( { model | composeOpen = False }, Cmd.none )
+
+        DraftChanged s ->
+            ( { model | communityDraft = s }, Cmd.none )
+
+        PostReply ->
+            case model.selectedCircle of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just circleId ->
+                    let
+                        body =
+                            String.trim model.communityDraft
+                    in
+                    if String.isEmpty body then
+                        ( model, Cmd.none )
+
+                    else
+                        let
+                            post =
+                                { id = "post-you-" ++ String.fromInt (List.length model.posts)
+                                , circleId = circleId
+                                , author = model.userName
+                                , initial = "Y"
+                                , photo = ""
+                                , body = body
+                                , reactions = []
+                                , replies = []
+                                }
+                        in
+                        ( { model
+                            | posts = post :: model.posts
+                            , communityDraft = ""
+                            , composeOpen = False
+                          }
+                        , Cmd.none
+                        )
+
+        OpenPost id ->
+            ( { model | selectedPost = Just id, replyDraft = "", composeOpen = False, reactionPicker = Nothing }, Cmd.none )
+
+        OpenReactionPicker id ->
+            case model.reactionPicker of
+                Just openId ->
+                    if openId == id then
+                        ( { model | reactionPicker = Nothing }, Cmd.none )
+
+                    else
+                        ( { model | reactionPicker = Just id }, Cmd.none )
+
+                Nothing ->
+                    ( { model | reactionPicker = Just id }, Cmd.none )
+
+        CloseReactionPicker ->
+            ( { model | reactionPicker = Nothing }, Cmd.none )
+
+        ReactPost postId emoji ->
+            ( { model
+                | posts = List.map (mapPostReact postId emoji) model.posts
+                , reactionPicker = Nothing
+              }
+            , Cmd.none
+            )
+
+        ReactReply postId replyId emoji ->
+            ( { model
+                | posts = List.map (mapReplyReact postId replyId emoji) model.posts
+                , reactionPicker = Nothing
+              }
+            , Cmd.none
+            )
+
+        ReplyDraftChanged s ->
+            ( { model | replyDraft = s }, Cmd.none )
+
+        SendReply ->
+            case model.selectedPost of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just postId ->
+                    let
+                        body =
+                            String.trim model.replyDraft
+                    in
+                    if String.isEmpty body then
+                        ( model, Cmd.none )
+
+                    else
+                        let
+                            reply =
+                                { id = "r-you-" ++ String.fromInt (List.length model.posts)
+                                , author = model.userName
+                                , initial = "Y"
+                                , photo = ""
+                                , body = body
+                                , reactions = []
+                                }
+                        in
+                        ( { model
+                            | posts = List.map (addReply postId reply) model.posts
+                            , replyDraft = ""
+                          }
+                        , Cmd.none
+                        )
+
+        RefreshFeed ->
+            ( { model | statusLine = "Forums up to date" }, Cmd.none )
+
+
+addUnique : String -> List String -> List String
+addUnique id list =
+    if List.member id list then
+        list
+
+    else
+        id :: list
+
+
+mapPostReact : String -> String -> Post -> Post
+mapPostReact postId emoji post =
+    if post.id == postId then
+        { id = post.id
+        , circleId = post.circleId
+        , author = post.author
+        , initial = post.initial
+        , photo = post.photo
+        , body = post.body
+        , reactions = toggleReaction emoji post.reactions
+        , replies = post.replies
+        }
+
+    else
+        post
+
+
+mapReplyReact : String -> String -> String -> Post -> Post
+mapReplyReact postId replyId emoji post =
+    if post.id == postId then
+        { id = post.id
+        , circleId = post.circleId
+        , author = post.author
+        , initial = post.initial
+        , photo = post.photo
+        , body = post.body
+        , reactions = post.reactions
+        , replies =
+            List.map
+                (\r ->
+                    if r.id == replyId then
+                        { id = r.id
+                        , author = r.author
+                        , initial = r.initial
+                        , photo = r.photo
+                        , body = r.body
+                        , reactions = toggleReaction emoji r.reactions
+                        }
+
+                    else
+                        r
+                )
+                post.replies
+        }
+
+    else
+        post
+
+
+toggleReaction : String -> List Reaction -> List Reaction
+toggleReaction emoji reactions =
+    case List.head (List.filter (\r -> r.emoji == emoji) reactions) of
+        Nothing ->
+            { emoji = emoji, count = 1, mine = True } :: reactions
+
+        Just existing ->
+            if existing.mine then
+                let
+                    nextCount =
+                        existing.count - 1
+                in
+                if nextCount <= 0 then
+                    List.filter (\r -> r.emoji /= emoji) reactions
+
+                else
+                    List.map
+                        (\r ->
+                            if r.emoji == emoji then
+                                { emoji = r.emoji, count = nextCount, mine = False }
+
+                            else
+                                r
+                        )
+                        reactions
+
+            else
+                List.map
+                    (\r ->
+                        if r.emoji == emoji then
+                            { emoji = r.emoji, count = r.count + 1, mine = True }
+
+                        else
+                            r
+                    )
+                    reactions
+
+
+addReply : String -> Reply -> Post -> Post
+addReply postId reply post =
+    if post.id == postId then
+        { id = post.id
+        , circleId = post.circleId
+        , author = post.author
+        , initial = post.initial
+        , photo = post.photo
+        , body = post.body
+        , reactions = post.reactions
+        , replies = List.append post.replies [ reply ]
+        }
+
+    else
+        post

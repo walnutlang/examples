@@ -1,0 +1,167 @@
+module Pages.Today exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Model.Query exposing (..)
+import Update.Msg exposing (..)
+import View.Task exposing (tasksBlock)
+import View.Theme exposing (..)
+
+
+view : Model -> View Msg
+view model =
+    let
+        visible =
+            segmentItems model.segment model.items
+
+        done =
+            todayDoneCount model.items
+
+        total =
+            todayTotalCount model.items
+    in
+    column [ width fill, height fill, bg canvas ]
+        [ scroll [ spacing 20, width fill, height fill, paddingXY 22 18, scrollBottomInset 120 ]
+            [ topBar
+            , greetingRow model.userName
+            , progressRow done total
+            , segmentPicker model.segment
+            , slotSection Morning visible
+            , slotSection Afternoon visible
+            , slotSection Evening visible
+            , emptyHint visible
+            , el [ height (px 100) ] (text "")
+            ]
+        ]
+
+
+topBar : View Msg
+topBar =
+    row [ width fill, centerY ]
+        [ el [ fontSize 12, semibold, fontColor muted ] (text "THU · JUL 18")
+        , spacer
+        , el
+            [ width (px 32)
+            , height (px 32)
+            , rounded 14
+            , centerX
+            ]
+            (icon [ tint inkSoft, fontSize 16 ] "magnifyingglass")
+        , el
+            [ width (px 32)
+            , height (px 32)
+            , rounded 16
+            , bg ink
+            , centerX
+            ]
+            (el [ fontSize 13, semibold, fontColor white ] (text "A"))
+        ]
+
+
+greetingRow : String -> View Msg
+greetingRow name =
+    el [ fontSize 34, serif, fontColor ink ] (text (greeting name))
+
+
+progressRow : Int -> Int -> View Msg
+progressRow done total =
+    column [ spacing 8, width fill ]
+        [ row
+            [ width fill
+            , height (px 8)
+            , bg hairline
+            , rounded 4
+            ]
+            [ el
+                [ width (px (done * 36))
+                , height (px 8)
+                , bg success
+                , rounded 4
+                ]
+                (text "")
+            , spacer
+            ]
+        , el [ fontSize 13, fontColor muted ]
+            (text (String.fromInt done ++ " / " ++ String.fromInt total ++ " done"))
+        ]
+
+
+segmentPicker : Segment -> View Msg
+segmentPicker selected =
+    row
+        [ width fill
+        , padding 4
+        , bg chip
+        , rounded 16
+        ]
+        [ segChip SegToday "Today" selected
+        , segChip SegUpcoming "Upcoming" selected
+        , segChip SegAll "All" selected
+        ]
+
+
+segChip : Segment -> String -> Segment -> View Msg
+segChip target label selected =
+    if target == selected then
+        button
+            [ onTap (nav (SetSegment target))
+            , paddingXY 14 10
+            , width fill
+            , bg surface
+            , rounded 12
+            , fontSize 14
+            , semibold
+            , fontColor ink
+            ]
+            [ el [ textCenter, width fill, fontColor ink, semibold ] (text label) ]
+
+    else
+        button
+            [ onTap (nav (SetSegment target))
+            , paddingXY 14 10
+            , width fill
+            , fontSize 14
+            , fontColor muted
+            ]
+            [ el [ textCenter, width fill, fontColor muted ] (text label) ]
+
+
+slotSection : Slot -> List Item -> View Msg
+slotSection slot items =
+    let
+        group =
+            slotItems slot items
+    in
+    if List.isEmpty group then
+        none
+
+    else
+        column [ spacing 4, width fill ]
+            [ row [ width fill, centerY, paddingXY 0 8 ]
+                [ el [ fontSize 12, semibold, fontColor muted ] (text (slotTitle slot))
+                , spacer
+                , el [ fontSize 12, fontColor muted ]
+                    (text (String.fromInt (List.length group)))
+                ]
+            , tasksBlock group
+            ]
+
+
+emptyHint : List Item -> View Msg
+emptyHint visible =
+    if List.isEmpty visible then
+        column
+            [ spacing 10
+            , width fill
+            , padding 28
+            , bg surface
+            , rounded 20
+            ]
+            [ el [ fontSize 18, serif, fontColor ink, textCenter, width fill ]
+                (text "Nothing here yet")
+            , el [ fontSize 14, fontColor inkSoft, textCenter, width fill ]
+                (text "Tap + to capture the next thing.")
+            ]
+
+    else
+        none

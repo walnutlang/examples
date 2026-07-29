@@ -1,0 +1,9 @@
+module Greeter.Hello exposing (greet)
+
+{-| Tiny shared package used by `Examples/PkgDemo` (path dependency).
+-}
+
+
+greet : String -> String
+greet name =
+    "hello, " ++ name

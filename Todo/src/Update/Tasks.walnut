@@ -1,0 +1,219 @@
+module Update.Tasks exposing (update)
+
+import Cmd exposing (Cmd)
+import Model.Index exposing (findItem, withItems)
+import Model.Types exposing (..)
+import Port
+import Update.Msg exposing (..)
+import Update.Persist exposing (andPersist, deleteItem, persist)
+
+
+update : TasksMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        Add ->
+            andPersist (insertDraft model)
+
+        Toggle id ->
+            andPersist
+                (withItems (List.map (\item -> toggleItem id item) model.items) model)
+
+        ToggleSubtask taskId title ->
+            andPersist
+                (withItems (List.map (\item -> toggleSubOnItem taskId title item) model.items) model)
+
+        MarkComplete id ->
+            andPersist
+                (withItems (List.map (\item -> markItem id item) model.items)
+                    { model | selectedId = Nothing }
+                )
+
+        RequestDelete id ->
+            ( { model | pendingDelete = Just id }
+            , Cmd.none
+            )
+
+        CancelDelete ->
+            ( { model | pendingDelete = Nothing }
+            , Cmd.none
+            )
+
+        ConfirmDelete ->
+            confirmDelete model
+
+        ShareTask id ->
+            shareTask id model
+
+        ShareDone _ ->
+            ( model, Cmd.none )
+
+
+confirmDelete : Model -> ( Model, Cmd Msg )
+confirmDelete model =
+    case model.pendingDelete of
+        Nothing ->
+            ( model, Cmd.none )
+
+        Just id ->
+            let
+                next =
+                    withItems (List.filter (\item -> item.id /= id) model.items)
+                        { model
+                            | pendingDelete = Nothing
+                            , selectedId = Nothing
+                        }
+            in
+            ( next
+            , Cmd.batch
+                [ deleteItem id
+                , persist next
+                ]
+            )
+
+
+shareTask : Int -> Model -> ( Model, Cmd Msg )
+shareTask id model =
+    case findItem id model of
+        Nothing ->
+            ( model, Cmd.none )
+
+        Just item ->
+            ( model
+            , Port.cmd "share" (sharePayload item) shareDone
+            )
+
+
+sharePayload : Item -> String
+sharePayload item =
+    item.title ++ "\n" ++ taskURL item.id
+
+
+taskURL : Int -> String
+taskURL id =
+    "walnut-todo://task/" ++ String.fromInt id
+
+
+insertDraft : Model -> Model
+insertDraft model =
+    let
+        title =
+            String.trim model.draft
+    in
+    if String.isEmpty title then
+        model
+
+    else
+        withItems
+            (Item model.nextId
+                title
+                model.draftList
+                (areaFromDraftDate model.draftDate)
+                (slotFromDraftTime model.draftTime)
+                (timeLabelFromDraft model.draftTime)
+                model.draftPriority
+                (String.trim model.draftNote)
+                []
+                ""
+                False
+                :: model.items
+            )
+            { model
+                | draft = ""
+                , draftNote = ""
+                , draftPriority = PriorityNone
+                , draftDate = "Today"
+                , draftTime = "2:00 PM"
+                , composePicker = Nothing
+                , nextId = model.nextId + 1
+                , composing = False
+            }
+
+
+toggleItem : Int -> Item -> Item
+toggleItem id item =
+    if item.id == id then
+        { item | done = not item.done }
+
+    else
+        item
+
+
+markItem : Int -> Item -> Item
+markItem id item =
+    if item.id == id then
+        { item | done = True }
+
+    else
+        item
+
+
+toggleSubOnItem : Int -> String -> Item -> Item
+toggleSubOnItem taskId title item =
+    if item.id == taskId then
+        { item | subtasks = List.map (\sub -> flipSub title sub) item.subtasks }
+
+    else
+        item
+
+
+flipSub : String -> Subtask -> Subtask
+flipSub title sub =
+    if sub.title == title then
+        { sub | done = not sub.done }
+
+    else
+        sub
+
+
+timeLabelFromDraft : String -> String
+timeLabelFromDraft label =
+    if label == "Anytime" then
+        ""
+
+    else
+        label
+
+
+slotFromDraftTime : String -> Slot
+slotFromDraftTime label =
+    if label == "9:00 AM" then
+        Morning
+
+    else if label == "11:00 AM" then
+        Morning
+
+    else if label == "2:00 PM" then
+        Afternoon
+
+    else if label == "5:00 PM" then
+        Afternoon
+
+    else if label == "7:00 PM" then
+        Evening
+
+    else
+        Afternoon
+
+
+areaFromDraftDate : String -> Area
+areaFromDraftDate label =
+    if label == "Today" then
+        Today
+
+    else if label == "Tomorrow" then
+        Upcoming
+
+    else if label == "Upcoming" then
+        Upcoming
+
+    else if label == "Anytime" then
+        Anytime
+
+    else if label == "Someday" then
+        Someday
+
+    else if label == "Inbox" then
+        Inbox
+
+    else
+        Today

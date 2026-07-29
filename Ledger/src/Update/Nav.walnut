@@ -1,0 +1,41 @@
+module Update.Nav exposing (update)
+
+import Cmd exposing (Cmd)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+
+
+update : NavMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        SelectTab tab ->
+            ( { model | tab = tab, selectedId = Nothing, composing = False }
+            , Cmd.none
+            )
+
+        OpenEntry id ->
+            ( { model | selectedId = Just id, composing = False }
+            , Cmd.none
+            )
+
+        CloseEntry ->
+            ( { model | selectedId = Nothing }
+            , Cmd.none
+            )
+
+        StartCompose ->
+            ( { model
+                | composing = True
+                , selectedId = Nothing
+                , draftPayee = ""
+                , draftCategory = "Sales"
+                , draftAmount = ""
+                , draftNote = ""
+              }
+            , Cmd.none
+            )
+
+        CancelCompose ->
+            ( { model | composing = False }
+            , Cmd.none
+            )

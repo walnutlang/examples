@@ -1,0 +1,73 @@
+module Update.Persist exposing (..)
+
+import Cmd exposing (Cmd)
+import CoreData
+import Model.Types exposing (..)
+import Model.Init exposing (seed)
+import Update.Msg exposing (..)
+
+
+collection : String
+collection =
+    "ledger.entries.v3"
+
+
+loadCmds : Cmd Msg
+loadCmds =
+    CoreData.fetchAll collection onGotEntries
+
+
+andPersist : Model -> ( Model, Cmd Msg )
+andPersist model =
+    ( model, persist model )
+
+
+persist : Model -> Cmd Msg
+persist model =
+    Cmd.batch (List.map putEntry model.entries)
+
+
+putEntry : Entry -> Cmd Msg
+putEntry e =
+    CoreData.put collection (String.fromInt e.id) (encodeEntry e)
+
+
+deleteEntry : Int -> Cmd Msg
+deleteEntry id =
+    CoreData.delete collection (String.fromInt id)
+
+
+update : PersistMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        GotEntries payloads ->
+            if List.isEmpty payloads then
+                andPersist seed
+
+            else
+                ( { model | entries = seed.entries, nextId = seed.nextId }
+                , Cmd.none
+                )
+
+
+encodeEntry : Entry -> String
+encodeEntry e =
+    String.join "\t"
+        [ String.fromInt e.id
+        , e.date
+        , e.payee
+        , e.category
+        , String.fromInt e.amountDollars
+        , encodeFlow e.flow
+        , e.note
+        ]
+
+
+encodeFlow : Flow -> String
+encodeFlow flow =
+    case flow of
+        In ->
+            "in"
+
+        Out ->
+            "out"

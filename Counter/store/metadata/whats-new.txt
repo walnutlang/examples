@@ -1,0 +1,5 @@
+First App Store listing for Counter — Walnut’s smoke demo.
+
+• App Store–ready ios/ shell (icons, orientations, export compliance)
+• TestFlight via walnut testflight
+• Screenshot kit under store/

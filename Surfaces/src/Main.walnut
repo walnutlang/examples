@@ -1,0 +1,201 @@
+module Main exposing (main)
+
+import Ui exposing (..)
+import Walnut
+
+
+-- MODEL
+
+type alias Model =
+    { selected : String
+    , sheetOpen : Bool
+    , detail : Maybe String
+    }
+
+
+init : Model
+init =
+    { selected = "none"
+    , sheetOpen = False
+    , detail = Nothing
+    }
+
+
+-- UPDATE
+
+type Msg
+    = Pick String
+    | OpenSheet
+    | CloseSheet
+    | OpenDetail String
+    | CloseDetail
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        Pick name ->
+            { model | selected = name }
+
+        OpenSheet ->
+            { model | sheetOpen = True }
+
+        CloseSheet ->
+            { model | sheetOpen = False }
+
+        OpenDetail name ->
+            { model | detail = Just name, selected = name }
+
+        CloseDetail ->
+            { model | detail = Nothing }
+
+
+-- VIEW
+
+rootPage : Model -> View Msg
+rootPage model =
+    column
+        [ key "surfaces-root"
+        , spacing 16
+        , padding 20
+        , width fill
+        , height fill
+        , safeArea
+        ]
+        [ el [ fontSize 28, bold ] (text "Surfaces")
+        , el [ fontSize 15, fontColor gray ]
+            (text ("Selected: " ++ model.selected))
+        , button [ onTap OpenSheet, padding 12, bg (rgb255 37 99 235), rounded 12 ]
+            [ el [ fontColor white, bold ] (text "Open sheet") ]
+        , button [ onTap (OpenDetail "pushed"), padding 12, bg (rgb255 20 184 166), rounded 12 ]
+            [ el [ fontColor white, bold ] (text "Push detail") ]
+        , el [ fontSize 13, fontColor gray ]
+            (text "collection + item")
+        , collection [ key "demo-grid", spacing 10, height (px 180) ]
+            [ item [ key "alpha", onTap (Pick "alpha") ]
+                [ el [ fontSize 17, bold ] (text "Alpha")
+                , el [ fontSize 13, fontColor gray ] (text "Tap me")
+                ]
+            , item [ key "bravo", onTap (Pick "bravo") ]
+                [ el [ fontSize 17, bold ] (text "Bravo")
+                , el [ fontSize 13, fontColor gray ] (text "Tap me")
+                ]
+            , item [ key "charlie", onTap (Pick "charlie") ]
+                [ el [ fontSize 17, bold ] (text "Charlie")
+                , el [ fontSize 13, fontColor gray ] (text "Tap me")
+                ]
+            ]
+        , el [ fontSize 13, fontColor gray ]
+            (text "map + marker items")
+        , map
+            [ key "demo-map"
+            , height (px 240)
+            , rounded 16
+            , propString "latitude" "37.7749"
+            , propString "longitude" "-122.4194"
+            , propString "span" "0.08"
+            ]
+            [ item
+                [ key "ferry"
+                , propString "latitude" "37.7955"
+                , propString "longitude" "-122.3937"
+                , content "Ferry Building"
+                , onTap (Pick "ferry")
+                ]
+                []
+            , item
+                [ key "park"
+                , propString "latitude" "37.7699"
+                , propString "longitude" "-122.4662"
+                , content "Golden Gate Park"
+                , onTap (Pick "park")
+                ]
+                []
+            ]
+        ]
+
+
+detailPage : String -> View Msg
+detailPage name =
+    column
+        [ key ("detail-" ++ name)
+        , spacing 16
+        , padding 24
+        , width fill
+        , height fill
+        , safeArea
+        , bg white
+        ]
+        [ button [ onTap CloseDetail, padding 8 ]
+            [ el [ fontColor (rgb255 37 99 235) ] (text "< Back") ]
+        , el [ fontSize 28, bold ] (text name)
+        , el [ fontSize 15, fontColor gray ]
+            (text "Pushed via navStack — swipe from the left edge to pop.")
+        ]
+
+
+sheetBody : View Msg
+sheetBody =
+    column
+        [ key "sheet-body"
+        , spacing 12
+        , padding 24
+        , width fill
+        ]
+        [ el [ fontSize 22, bold ] (text "System sheet")
+        , el [ fontSize 15, fontColor gray ]
+            (text "Swipe down or tap Close — onDismiss fires CloseSheet.")
+        , button [ onTap CloseSheet, padding 12, bg (rgb255 37 99 235), rounded 12 ]
+            [ el [ fontColor white, bold ] (text "Close") ]
+        ]
+
+
+maybeSheet : Model -> View Msg
+maybeSheet model =
+    if model.sheetOpen then
+        sheet
+            [ key "demo-sheet"
+            , propString "detent" "medium"
+            ]
+            CloseSheet
+            sheetBody
+
+    else
+        none
+
+
+pages : Model -> List (View Msg)
+pages model =
+    case model.detail of
+        Just name ->
+            [ rootPage model
+            , detailPage name
+            ]
+
+        Nothing ->
+            [ rootPage model ]
+
+
+view : Model -> View Msg
+view model =
+    column [ width fill, height fill ]
+        [ navStack
+            [ key "surfaces-nav"
+            , width fill
+            , height fill
+            ]
+            CloseDetail
+            (pages model)
+        , maybeSheet model
+        ]
+
+
+-- PROGRAM
+
+main : Walnut.Program Model Msg
+main =
+    Walnut.sandbox
+        { init = init
+        , update = update
+        , view = view
+        }

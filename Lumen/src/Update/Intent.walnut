@@ -1,0 +1,332 @@
+module Update.Intent exposing (update, triagePending)
+
+import Cmd exposing (Cmd)
+import Port
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import Update.Learn exposing (deliverCoachMessage)
+import Update.Persist exposing (persist)
+
+
+update : IntentMsg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        FromShortcut payload ->
+            applyPayload payload model
+
+        GotTriage payload ->
+            applyTriage payload model
+
+
+applyPayload : String -> Model -> ( Model, Cmd Msg )
+applyPayload payload model =
+    let
+        action =
+            field payload "action"
+    in
+    if action == "tellLumen" then
+        captureNote (noteText payload) model
+
+    else if action == "logFood" then
+        captureNote (field payload "food") model
+
+    else if action == "messageCoach" then
+        messageCoach (field payload "coach") (field payload "body") model
+
+    else if action == "logGlucose" then
+        logGlucose (field payload "mgdl") model
+
+    else if action == "keepCommitment" then
+        keepCommitment (field payload "id") model
+
+    else
+        ( { model | statusLine = "Unknown shortcut" }, Cmd.none )
+
+
+noteText : String -> String
+noteText payload =
+    let
+        direct =
+            String.trim (field payload "text")
+    in
+    if not (String.isEmpty direct) then
+        direct
+
+    else
+        let
+            update =
+                String.trim (field payload "update")
+        in
+        if not (String.isEmpty update) then
+            update
+
+        else
+            let
+                had =
+                    String.trim (field payload "had")
+
+                activity =
+                    String.trim (field payload "activity")
+            in
+            if String.isEmpty had then
+                activity
+
+            else if String.isEmpty activity then
+                had
+
+            else
+                had ++ " and " ++ activity
+
+
+{-| Append a pending note and kick on-device triage. No food/coach side effects yet.
+-}
+captureNote : String -> Model -> ( Model, Cmd Msg )
+captureNote raw model =
+    let
+        text =
+            String.trim raw
+    in
+    if String.isEmpty text then
+        ( { model | statusLine = "Note needed some text" }, Cmd.none )
+
+    else
+        let
+            note =
+                { id = "note-" ++ String.fromInt (List.length model.notes)
+                , text = text
+                , status = "pending"
+                , kind = ""
+                , coachId = ""
+                , commitmentId = ""
+                , summary = ""
+                }
+
+            next =
+                { model
+                    | notes = note :: model.notes
+                    , tab = FeedbackTab
+                    , selectedLesson = Nothing
+                    , selectedCoach = Nothing
+                    , selectedPost = Nothing
+                    , statusLine = "Note saved · sorting…"
+                    , onboardingDone = True
+                }
+        in
+        ( next, Cmd.batch [ persist next, triageCmd note ] )
+
+
+triagePending : Model -> Cmd Msg
+triagePending model =
+    case List.head (List.filter (\n -> n.status == "pending") model.notes) of
+        Nothing ->
+            Cmd.none
+
+        Just note ->
+            triageCmd note
+
+
+triageCmd : Note -> Cmd Msg
+triageCmd note =
+    Port.cmd "lumen.triage"
+        ("noteId=" ++ note.id ++ "\ntext=" ++ sanitize note.text)
+        onTriage
+
+
+sanitize : String -> String
+sanitize text =
+    String.trim (String.join " " (String.split "\n" text))
+
+
+applyTriage : String -> Model -> ( Model, Cmd Msg )
+applyTriage payload model =
+    if String.startsWith "ERR" payload then
+        ( { model | statusLine = "Triage failed — try again" }, Cmd.none )
+
+    else
+        let
+            noteId =
+                field payload "noteId"
+
+            kind =
+                field payload "kind"
+
+            coachId =
+                field payload "coach"
+
+            commitmentId =
+                field payload "commitment"
+
+            summary =
+                field payload "summary"
+
+            labeled =
+                List.map (markReady noteId kind coachId commitmentId summary) model.notes
+
+            withCommit =
+                if String.isEmpty commitmentId then
+                    { model | notes = labeled }
+
+                else
+                    { model
+                        | notes = labeled
+                        , commitments = List.map (markId commitmentId) model.commitments
+                    }
+
+            withCoach =
+                if String.isEmpty coachId then
+                    withCommit
+
+                else
+                    case List.head (List.filter (\n -> n.id == noteId) labeled) of
+                        Nothing ->
+                            withCommit
+
+                        Just note ->
+                            deliverCoachMessage coachId (note.text ++ " (from Siri)") withCommit
+
+            next =
+                { withCoach
+                    | tab = FeedbackTab
+                    , selectedLesson = Nothing
+                    , selectedCoach = Nothing
+                    , selectedPost = Nothing
+                    , statusLine =
+                        if String.isEmpty summary then
+                            "Note sorted"
+
+                        else
+                            summary
+                }
+        in
+        ( next, Cmd.batch [ persist next, triagePending next ] )
+
+
+markReady : String -> String -> String -> String -> String -> Note -> Note
+markReady noteId kind coachId commitmentId summary note =
+    if note.id == noteId then
+        { id = note.id
+        , text = note.text
+        , status = "ready"
+        , kind = kind
+        , coachId = coachId
+        , commitmentId = commitmentId
+        , summary = summary
+        }
+
+    else
+        note
+
+
+messageCoach : String -> String -> Model -> ( Model, Cmd Msg )
+messageCoach coachId body model =
+    let
+        trimmed =
+            String.trim body
+
+        id =
+            if String.isEmpty (String.trim coachId) then
+                "coach-ava"
+
+            else
+                String.trim coachId
+    in
+    if String.isEmpty trimmed then
+        ( { model | statusLine = "Coach shortcut needed a message" }, Cmd.none )
+
+    else
+        let
+            next =
+                deliverCoachMessage id
+                    trimmed
+                    { model
+                        | tab = LearnTab
+                        , learnSegment = 1
+                        , onboardingDone = True
+                        , statusLine = "Message sent to coach"
+                    }
+        in
+        ( next, Cmd.none )
+
+
+logGlucose : String -> Model -> ( Model, Cmd Msg )
+logGlucose raw model =
+    case String.toInt (String.trim raw) of
+        Nothing ->
+            ( { model | statusLine = "Glucose shortcut needs a whole number" }, Cmd.none )
+
+        Just n ->
+            let
+                v =
+                    model.vitals
+
+                next =
+                    { model
+                        | vitals =
+                            { steps = v.steps
+                            , heartRate = v.heartRate
+                            , glucose = n
+                            , bpSys = v.bpSys
+                            , bpDia = v.bpDia
+                            , weight = v.weight
+                            , source = "Shortcut"
+                            }
+                        , tab = FeedbackTab
+                        , selectedLesson = Nothing
+                        , selectedCoach = Nothing
+                        , selectedPost = Nothing
+                        , statusLine = "Saved glucose " ++ String.fromInt n
+                        , onboardingDone = True
+                    }
+            in
+            ( next, Cmd.none )
+
+
+keepCommitment : String -> Model -> ( Model, Cmd Msg )
+keepCommitment id model =
+    let
+        next =
+            { model
+                | commitments = List.map (markId id) model.commitments
+                , tab = AccountTab
+                , selectedLesson = Nothing
+                , selectedCoach = Nothing
+                , selectedPost = Nothing
+                , statusLine = "Commitment marked kept"
+                , onboardingDone = True
+            }
+    in
+    ( next, persist next )
+
+
+markId : String -> Commitment -> Commitment
+markId id c =
+    if c.id == id then
+        { c | kept = True }
+
+    else
+        c
+
+
+field : String -> String -> String
+field payload key =
+    let
+        prefix =
+            key ++ "="
+
+        matches =
+            List.filterMap
+                (\line ->
+                    if String.startsWith prefix line then
+                        Just (String.dropLeft (String.length prefix) line)
+
+                    else
+                        Nothing
+                )
+                (String.split "\n" payload)
+    in
+    case List.head matches of
+        Just value ->
+            value
+
+        Nothing ->
+            ""

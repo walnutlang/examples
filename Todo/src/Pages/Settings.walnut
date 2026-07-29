@@ -1,0 +1,39 @@
+module Pages.Settings exposing (view)
+
+import Ui exposing (..)
+import Model.Types exposing (..)
+import Update.Msg exposing (..)
+import View.Theme exposing (..)
+
+
+view : Model -> View Msg
+view model =
+    column [ width fill, height fill, bg canvas ]
+        [ scroll [ spacing 18, width fill, height fill, paddingXY 22 18 ]
+            [ el [ fontSize 12, semibold, fontColor muted ] (text "SETTINGS")
+            , el [ fontSize 34, serif, fontColor ink ] (text "Account")
+            , column
+                [ width fill
+                , padding 18
+                , bg surface
+                , rounded 18
+                , spacing 8
+                ]
+                [ el [ fontSize 13, fontColor muted ] (text "Signed in as")
+                , el [ fontSize 22, serif, fontColor ink ] (text model.userName)
+                , el [ fontSize 14, fontColor inkSoft ]
+                    (text "Auth is mocked for now — Get started / Sign in just unlock the app.")
+                ]
+            , column
+                [ width fill
+                , padding 18
+                , bg surface
+                , rounded 18
+                , spacing 10
+                ]
+                [ el [ fontSize 15, fontColor ink ] (text "Notifications")
+                , el [ fontSize 14, fontColor inkSoft ] (text "Reminders use the system permission prompt when you compose.")
+                ]
+            , el [ height (px 100) ] (text "")
+            ]
+        ]

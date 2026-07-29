@@ -1,0 +1,115 @@
+module Model.Query exposing (..)
+
+import Model.Types exposing (..)
+
+
+monthKey : String -> String
+monthKey date =
+    let
+        parts =
+            String.split "-" date
+    in
+    case List.head parts of
+        Nothing ->
+            date
+
+        Just year ->
+            case List.head (List.drop 1 parts) of
+                Nothing ->
+                    year
+
+                Just month ->
+                    year ++ "-" ++ month
+
+
+monthTitle : String -> String
+monthTitle key =
+    if key == "2026-07" then
+        "July 2026"
+
+    else if key == "2026-06" then
+        "June 2026"
+
+    else if key == "2026-05" then
+        "May 2026"
+
+    else
+        key
+
+
+knownMonths : List String
+knownMonths =
+    [ "2026-07", "2026-06", "2026-05" ]
+
+
+entriesInMonth : String -> List Entry -> List Entry
+entriesInMonth key entries =
+    List.filter (\e -> monthKey e.date == key) entries
+
+
+findEntry : Int -> List Entry -> Maybe Entry
+findEntry id entries =
+    List.head (List.filter (\e -> e.id == id) entries)
+
+
+incomeOf : Entry -> Int
+incomeOf e =
+    case e.flow of
+        In ->
+            e.amountDollars
+
+        Out ->
+            0
+
+
+expenseOf : Entry -> Int
+expenseOf e =
+    case e.flow of
+        Out ->
+            e.amountDollars
+
+        In ->
+            0
+
+
+incomeDollars : List Entry -> Int
+incomeDollars entries =
+    List.sum (List.map incomeOf entries)
+
+
+expenseDollars : List Entry -> Int
+expenseDollars entries =
+    List.sum (List.map expenseOf entries)
+
+
+balanceDollars : List Entry -> Int
+balanceDollars entries =
+    incomeDollars entries - expenseDollars entries
+
+
+formatDollars : Int -> String
+formatDollars n =
+    "$" ++ String.fromInt n
+
+
+formatSigned : Int -> String
+formatSigned n =
+    let
+        s =
+            String.fromInt n
+    in
+    if String.startsWith "-" s then
+        "-$" ++ String.dropLeft 1 s
+
+    else
+        "$" ++ s
+
+
+formatEntryAmount : Entry -> String
+formatEntryAmount e =
+    case e.flow of
+        In ->
+            formatDollars e.amountDollars
+
+        Out ->
+            "-" ++ formatDollars e.amountDollars
